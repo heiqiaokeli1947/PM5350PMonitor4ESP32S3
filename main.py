@@ -78,7 +78,7 @@ def feedDog(timer):
     print("{}:feed dog-----------".format(runTimeCounter))
 
 
-WDTTimer = Timer(1)
+WDTTimer = Timer(0)
 WDTTimer.init(mode=Timer.PERIODIC, period=5000, callback=feedDog)
 
 
@@ -99,7 +99,7 @@ def ModeTimerHandler(timer):
 
 
 def createConfigTimer(seconds):
-    modeTimer = Timer(4)
+    modeTimer = Timer(3)
     modeTimer.init(mode=Timer.PERIODIC, period=seconds * 1000, callback=ModeTimerHandler)
 
 
@@ -310,7 +310,7 @@ def handler(request):
 
     if "devicepwd" in request.args and request.args["devicepwd"] == systemConfig["devicepwd"]:
         print("reboot after 5s.")
-        createConfigTimer()
+        createConfigTimer(5)
         whenGotoConfigMode = utime.time() - MAX_CONFIG_MODE_TIME_IN_SECONDS + 5
     else:
         res["errCode"] = "-1"

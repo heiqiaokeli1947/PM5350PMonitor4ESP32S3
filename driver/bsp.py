@@ -34,7 +34,7 @@ class BSP:
         print("init hdc1080...")
         self.__hdc1080 = hdc1080.HDC1080(self.softI2C)
 
-        self.__sensorReadTimer = Timer(0)
+        self.__sensorReadTimer = Timer(1)
         self.__sensorReadTimer.init(mode=Timer.PERIODIC, period=5000, callback=self.timerHandler)
 
         self.aac = AAC.AAC()
