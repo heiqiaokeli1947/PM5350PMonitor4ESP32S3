@@ -276,13 +276,28 @@
 
 	</script>
 	<script>
-		var page_value_changed = 0;//界面正在设置值的时候不刷新
 		var is_waitting_response = 0;//上次查询未返回就不要发起新的查询。
 
-
-		function pageValueChange() {
-			page_value_changed = 1;
-			//alert('Range value change');
+		// 检测用户是否正在编辑表单元素
+		function isUserEditing() {
+			const activeElement = document.activeElement;
+			if (!activeElement) return false;
+			
+			// 检查是否为可编辑的表单元素
+			const editableTags = ['INPUT', 'TEXTAREA', 'SELECT'];
+			if (editableTags.includes(activeElement.tagName)) {
+				// 排除只读和禁用的元素
+				if (!activeElement.readOnly && !activeElement.disabled) {
+					return true;
+				}
+			}
+			
+			// 检查 contenteditable 元素
+			if (activeElement.isContentEditable) {
+				return true;
+			}
+			
+			return false;
 		};
 
 		class DataBuffer {
@@ -385,9 +400,9 @@
 		function autoRefreshTimerHandler() {
 
 			console.log("timer run.")
-			//if the page content changed then bypass a query
-			if (0 != page_value_changed) {
-				page_value_changed = 0
+			// 如果用户正在编辑表单元素，跳过本次刷新
+			if (isUserEditing()) {
+				console.log("User is editing, skip refresh");
 				return;
 			}
 			if (0 != is_waitting_response) {
@@ -574,7 +589,6 @@
 
 		$(function () {
 			$('#btn_switch').click(function () {
-				page_value_changed = 1
 				$('#btn_switch').addClass('loading').prop(
 					'disabled', true);
 				$.get('../status?mode=set&devicepwd={0}&fineHThreshold={1}&fineLThreshold={2}&pwmFreq={3}&pwmMinDuty={4}&pwmMaxDuty={5}&sprayPeriod={6}&minSparyTime={7}&minAddWaterInterval={8}&sw1={9}&sw2={10}'.format(
@@ -609,7 +623,6 @@
 			});
 
 			$('#btn_restart').click(function () {
-				page_value_changed = 1
 				$('#btn_restart').addClass('loading').prop('disabled', true);
 
 				$.get('../restart?devicepwd={0}'.format($('#devicepwd').val()),
@@ -633,7 +646,6 @@
 			});
 
 			$('#btn_reset').click(function () {
-				page_value_changed = 1
 				$('#btn_reset').addClass('loading').prop('disabled', true);
 
 				$.get('../reset?devicepwd={0}'.format($('#devicepwd').val()),
@@ -657,7 +669,6 @@
 			});
 
 			$('#connect').click(function () {
-				page_value_changed = 1
 				$('#connect').addClass('loading').prop('disabled', true);
 
 				$.get('../setwifi?ssid={0}&pwd={1}&serverurl={2}&devicepwd={3}&devicename={4}&sw1name={5}&sw2name={6}'
@@ -697,7 +708,6 @@
 			$('#scanap')
 				.click(
 					function () {
-						page_value_changed = 1
 						$('#scanap').addClass('loading').prop(
 							'disabled', true);
 
