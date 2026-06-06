@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>PM5350监控</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+		}
+		.grid-hero {
+			margin-top: 0;
+			margin-bottom: 1rem;
+		}
+
+		.bg-grey {
+			background-color: #efefef;
+			padding: 1rem;
+		}
+
+		header>h3 {
+			margin: 0;
+			padding: 4rem;
+		}
+		
+		.hidden {
+			display: none;
+		}
+	</style>
+	<link rel="stylesheet" href="/static/spectre.min.css">
+	<script src="/static/chart.umd.js"></script>
+	<script src="/static/sweetalert.min.js"></script>
+	<script src="/static/jquery.min.js"></script>
+</head>
+
+<body>
+	<section class="section bg-primary">
+		<section class="grid-hero container grid-480">
+			<header class="text-center" style="padding: 1rem 0;">
+				<h2 style="margin: 0;">Smart node</h2>
+			</header>
+			<!-- 			<section>
+				<p>Device control&network config.</p>
+			</section> -->
+		</section>
+	</section>
+	<section class="section">
+		<section id="device-control" class="container grid-480">
+			<header class="text-center">
+				<h4>Device control</h4>
+			</header>
+			<div id="control" class="form-group">
+				<label>Device name:<span id="device_name_show">----</span></label><br />
+			</div>
+
+			<canvas id="monitorChart" width=100% height=100px></canvas>
+
+			<div class="form-group">
+				<label class="form-label" for="select-ap">Sensor data:</label>
+				<label style="margin-left: 5%">本次启动运行时间:</label>
+				<span class="label" id="id_runtime">----s</span><br />
+
+				<label style="margin-left: 5%">总运行时间:</label>
+				<span class="label" id="id_totalRuntime">----s</span><br />
+
+				<label style="margin-left: 5%">平均电压:</label>
+				<span class="label" id="id_voltageAvg">----V</span><br />
+
+				<label style="margin-left: 5%">平均电流:</label>
+				<span class="label" id="id_currentAvg">----A</span><br />
+
+				<label style="margin-left: 5%">总功率:</label>
+				<span class="label" id="id_totalPower">----kW</span><br />
+				<label style="margin-left: 5%">频率:</label>
+				<span class="label" id="id_powerFreq">----Hz</span><br />
+				
+
+				<label style="margin-left: 5%">总功率因数:</label>
+				<span class="label" id="id_totalPowerFactor">----</span><br />
+				
+				<label style="margin-left: 5%">总电能:</label>
+				<span class="label" id="id_totalEnergy">----Wh</span><br />
+
+				<label style="margin-left: 5%">温度:</label>
+				<span class="label" id="id_temp">----℃</span><br />
+				
+				<label style="margin-left: 5%">湿球温度:</label>
+				<span class="label" id="id_wetBulbTemp">----℃</span><br />
+
+				<label style="margin-left: 5%">相对湿度:</label>
+				<span class="label" id="id_humity">----RH%</span><br />
+
+				<label style="margin-left: 5%">气压:</label>
+				<span class="label" id="id_presure">----Pa</span><br />
+
+				<label style="margin-left: 5%">照度:</label>
+				<span class="label" id="id_luminance">----Lux</span><br />
+
+				<label style="margin-left: 5%">PM2.5:</label>
+				<span class="label" id="id_pm2_5">----μg/m³</span><br />
+			</div>
+
+			<div class="form-group">
+				<label>温度高阈值(℃):</label>
+				<div class="input-group"><input type="text" id="threhold_h" class="form-input" value="----"
+							placeholder="外机散热器翅片温度高阈值." onchange="pageValueChange()"
+							oninput="pageValueChange()" /><br />
+				</div>
+				<label>温度低阈值(℃):</label>
+				<div class="input-group"><input type="text" id="threhold_l" class="form-input" value="----"
+					placeholder="外机散热器翅片温度低阈值:喷水启动阈值." onchange="pageValueChange()"
+					oninput="pageValueChange()" /><br />
+				</div>
+
+
+				<label>PWM频率(Hz):</label>
+				<div class="input-group"><input type="text" id="pwm_freq" class="form-input" value="----"
+							placeholder="PWM频率(Hz)." onchange="pageValueChange()"
+							oninput="pageValueChange()" /><br />
+				</div>
+				<label>最小PWM占空比(%):</label>
+				<div class="input-group"><input type="text" id="pwm_min_duty" class="form-input" value="----"
+					placeholder="PWM最小占空比." onchange="pageValueChange()"
+					oninput="pageValueChange()" /><br />
+				</div>
+				<label>最大PWM占空比(%):</label>
+				<div class="input-group"><input type="text" id="pwm_max_duty" class="form-input" value="----"
+					placeholder="PWM最大占空比." onchange="pageValueChange()"
+					oninput="pageValueChange()" /><br />
+				</div>
+				<br />
+			</div>
+
+			<div class="form-group">
+				<label class="form-label" for="select-ap">Switch:</label>
+				<label class="form-switch" style="margin-left: 5%"> <input type="checkbox" id="checkbox_1"
+						onclick="pageValueChange()" /> <i class="form-icon" onchange="pageValueChange()"></i> <span
+						id="sw_1_name">---</span> </label>
+				<label class="form-switch" style="margin-left: 5%"> <input type="checkbox" id="checkbox_2"
+						onclick="pageValueChange()" /> <i class="form-icon"></i> <span id="sw_2_name">---</span>
+				</label>
+				<button type="button" id="btn_switch" class="btn btn-primary float-right">Apply setting</button>
+				<br />
+			</div>
+			<br />
+			<div class="form-group">
+				<button type="button" id="btn_reset" class="btn btn-primary float-left"> reset </button>
+				<button type="button" id="btn_restart" class="btn btn-primary float-right">restart</button>
+				<br />
+			</div>
+			<div style="height: 20px;"></div>
+		</section>
+		<section id="network-config" class="container grid-480" style="display: none;">
+			<header class="text-center">
+				<h4>Network config</h4>
+			</header>
+			<form>
+				<div class="form-group">
+					<label>Device name:</label><br />
+					<div class="input-group"><input type="text" id="device_name" class="form-input" value="----"
+							placeholder="Input device name." onchange="pageValueChange()"
+							oninput="pageValueChange()" /><br /></div>
+					<label class="form-label" for="select-ap">Device password:</label>
+					<div class="input-group">
+						<input type="text" id="devicepwd" class="form-input" value="pengping"
+							placeholder="Input device password." onchange="pageValueChange()"
+							oninput="pageValueChange()" />
+					</div>
+
+					<label class="form-label" for="select-ap">Switch 1 name:</label>
+					<div class="input-group">
+						<input type="text" id="input_switch_1_name" class="form-input" value="----"
+							placeholder="Input switch 1 name." onchange="pageValueChange()"
+							oninput="pageValueChange()" />
+					</div>
+					<label class="form-label" for="select-ap">Switch 2 name:</label>
+					<div class="input-group">
+						<input type="text" id="input_switch_2_name" class="form-input" value="----"
+							placeholder="Input switch 2 name." onchange="pageValueChange()"
+							oninput="pageValueChange()" />
+					</div>
+
+					<label class="form-label" for="select-ap">Server IP:</label>
+					<div class="input-group">
+						<input type="text" id="serverurl" class="form-input" value="192.168.1.124"
+							placeholder="Input server IP." onchange="pageValueChange()" oninput="pageValueChange()" />
+					</div>
+
+					<label class="form-label" for="set-server-info">WIFI name:</label>
+					<div class="input-group">
+						<input type="text" id="ssid" class="form-input" placeholder="Input or select WIFI SSID."
+							onchange="pageValueChange()" oninput="pageValueChange()" />
+						<button type="button" id="scanap" class="btn btn-primary float-right">Search.. .WIFI</button>
+					</div>
+
+					<label class="form-label" for="input-pwd">WIFI password:</label>
+					<div class="input-group">
+						<input id="input-pwd" class="form-input" type="password" placeholder="Input WIFI password."
+							onchange="pageValueChange()" oninput="pageValueChange()" />
+						<button type="button" id="connect" class="btn btn-primary float-right">Connect WIFI</button>
+					</div>
+				</div>
+			</form>
+		</section>
+		<section class="section bg-primary" style="margin-bottom: 0;">
+			<section class="grid-hero container grid-480">
+				<section class="text-center" style="padding: 1rem 0; margin: 0;">
+					<p style="margin: 0;">Powered by pengping.</p>
+				</section>
+			</section>
+		</section>
+	</section>
+	<div id="selectwifi" class="modal">
+		<div class="modal-overlay"></div>
+		<div class="modal-container">
+			<div class="modal-header">
+				<div class="modal-title">Near by WIFI:</div>
+			</div>
+			<div id="aplist" class="modal-body" style="background-color: #66b3ff; min-height: 50px"></div>
+			<br />
+		</div>
+	</div>
+	<script id="item-ap" type="text/html">
+			<div class="chip hand">
+				<svg width="30px" height="20px" class="chip-icon">
+					<path d="M15,20 L0.86,5.86 A20,20 0 0,1 29.14,5.86" fill="#d0d0d0" />
+					<path d="M15,20 L{0},{1} A{2},{2} 0 0,1 {3},{1}" fill="#adadad" />
+				</svg>
+				<span class="chip-content">{4}</span>
+			</div>
+		</script>
+	<script>
+		var ctx = document.getElementById('monitorChart');
+		const labels = [];  // 设置 X 轴上对应的标签
+		const data = {
+			labels: labels,
+			datasets: [{
+				label: '温度',
+				data: [],
+				fill: false,
+				borderColor: 'rgb(75, 132, 192)', // 设置线的颜色
+				tension: 0.1
+			}, {
+				label: '湿度',
+				data: [],
+				fill: false,
+				borderColor: 'rgb(175, 92, 192)', // 设置线的颜色
+				tension: 0.1
+			}, {
+				label: '功率',
+				data: [],
+				fill: false,
+				borderColor: 'rgb(175, 92, 92)', // 设置线的颜色
+				tension: 0.1
+			}, {
+				label: '高阈值',
+				data: [],
+				fill: false,
+				borderColor: 'rgb(255, 0, 0)', // 设置线的颜色
+				tension: 0.1
+			}, {
+				label: '低阈值',
+				data: [],
+				fill: false,
+				borderColor: 'rgb(0, 255, 0)', // 设置线的颜色
+				tension: 0.1
+			}]
+		};
+		const config = {
+			type: 'line', // 设置图表类型
+			data: data,
+		};
+		const monitorChart = new Chart(ctx, config);
+
+	</script>
+	<script>
+		var page_value_changed = 0;//界面正在设置值的时候不刷新
+		var is_waitting_response = 0;//上次查询未返回就不要发起新的查询。
+
+
+		function pageValueChange() {
+			page_value_changed = 1;
+			//alert('Range value change');
+		};
+
+		class DataBuffer {
+
+			constructor(size) {
+				this.size = size;
+				this.buffer = new Array();
+			}
+
+			isFull() {
+				if (this.buffer.length >= this.size) {
+					return true;
+				}
+				return false;
+			}
+			add(data) {
+				if (this.isFull()) {
+					this.buffer.shift();
+				}
+				this.buffer.push(data);
+				console.log("buffer size:" + this.buffer.length)
+			}
+
+			getTempPlotData() {
+				let data = [];
+				for (const i in this.buffer) {
+					let json = this.buffer[i];
+					data.push([123, json.temp])
+				}
+				return data
+			}
+
+			getHumiPlotData() {
+				let data = [];
+				for (const i in this.buffer) {
+					let json = this.buffer[i];
+					data.push([123, json.humi])
+				}
+				return data
+			}
+
+			getPresurePlotData() {
+				let data = [];
+				for (const i in this.buffer) {
+					let json = this.buffer[i];
+					data.push([123, json.presure])
+				}
+				return data
+			}
+
+			getLuminancePlotData() {
+				let data = [];
+				for (const i in this.buffer) {
+					let json = this.buffer[i];
+					data.push([123, json.luminance])
+				}
+				return data
+			}
+
+			getPlotData() {
+
+				let plotData = {
+					x: [],
+					temp: [],
+					humi: [],
+					pm25: [],
+					luminance: [],
+					presure: [],
+					Ptotal:0,
+					fineHThreshold:0,
+					fineLThreshold:0
+				}
+
+				plotData.x = Array.from({ length: this.buffer.length }, (_, i) => i);
+
+				plotData.x = plotData.x.reverse();
+				const invalidValue = -9999;
+				for (const i in this.buffer) {
+					let json = this.buffer[i];
+					plotData.temp[i] = json.temp == invalidValue ? undefined : json.temp
+					plotData.humi[i] = json.humi == invalidValue ? undefined : json.humi
+					plotData.pm25[i] = json.pm25 == invalidValue ? undefined : json.pm25
+					plotData.luminance[i] = json.luminance == invalidValue ? undefined : json.luminance
+					plotData.presure[i] = json.presure == invalidValue ? undefined : json.presure
+				}
+				if(this.buffer.length > 0){
+					plotData.Ptotal = this.buffer[this.buffer.length-1].Ptotal
+					plotData.fineHThreshold = this.buffer[this.buffer.length-1].fineHThreshold
+					plotData.fineLThreshold = this.buffer[this.buffer.length-1].fineTempThreshold
+				}
+				
+				return plotData
+			}
+		}
+
+		var bufferLength = 350 //350*5=1800s=半小时
+		var dataBuffer = new DataBuffer(bufferLength);
+
+
+		function autoRefreshTimerHandler() {
+
+			console.log("timer run.")
+			//if the page content changed then bypass a query
+			if (0 != page_value_changed) {
+				page_value_changed = 0
+				return;
+			}
+			if (0 != is_waitting_response) {
+				return;
+			} else {
+				is_waitting_response = 1;
+			}
+			var pwd = $('#devicepwd').val();
+			console.log("Requesting status with pwd: '" + pwd + "'");
+			$.get('../status?mode=get&devicepwd=' + pwd)
+				.done(function(resJsonStr) {
+					console.log("Response received: " + resJsonStr);
+					resJson = JSON.parse(resJsonStr)
+					is_waitting_response = 0;
+					switch (resJson.errCode) {
+					case '0': {
+						dataBuffer.add(resJson)
+						let lineData = dataBuffer.getPlotData()
+						console.log("data:" + lineData)
+
+						const data = monitorChart.data
+
+
+						for (let index = 0; index < data.datasets.length; ++index) {
+							
+
+							if (data.datasets[index].label == '温度') {
+								if (data.datasets[index].data.length >= bufferLength) {
+									data.datasets[index].data.shift()
+								}
+								data.datasets[index].data.push(lineData.temp.at(-1))
+							}
+
+							if (data.datasets[index].label == '湿度') {
+								if (data.datasets[index].data.length >= bufferLength) {
+									data.datasets[index].data.shift()
+								}
+								data.datasets[index].data.push(lineData.humi.at(-1))
+								data.datasets[index].hidden = true
+							}
+
+							if (data.datasets[index].label == '功率') {
+								if (data.datasets[index].data.length >= bufferLength) {
+									data.datasets[index].data.shift()
+								}
+								data.datasets[index].data.push(lineData.Ptotal)
+								data.datasets[index].hidden = false
+							}
+
+							if (data.datasets[index].label == '高阈值') {
+								if (data.datasets[index].data.length >= bufferLength) {
+									data.datasets[index].data.shift()
+								}
+								data.datasets[index].data.push(lineData.fineHThreshold)
+							}
+
+							if (data.datasets[index].label == '低阈值') {
+								if (data.datasets[index].data.length >= bufferLength) {
+									data.datasets[index].data.shift()
+								}
+								data.datasets[index].data.push(lineData.fineLThreshold)
+							}
+						}
+
+						data.labels = lineData.x
+						
+						monitorChart.update()
+
+						$('#sw_1_name').html(resJson.sw1name);
+						$('#sw_2_name').html(resJson.sw2name);
+						$('#input_switch_1_name').val(resJson.sw1name);
+						$('#input_switch_2_name').val(resJson.sw2name);
+						$('#device_name_show').html(resJson.devicename);
+						$('#device_name').val(resJson.devicename);
+						$('#serverurl').val(resJson.serverurl);
+						$('#id_runtime').text(resJson.runTime + 's');
+						$('#id_totalRuntime').text(resJson.totalRunTime + 's');
+						$('#id_currentAvg').text(resJson.Iavg.toFixed(3) + 'A');
+						$('#id_totalEnergy').text((resJson.Eaed/1000.0).toFixed(3) + 'kWh');
+						$('#id_powerFreq').text(resJson.Freq.toFixed(3) + 'Hz');
+						$('#id_totalPower').text(resJson.Ptotal.toFixed(3) + 'kW');
+						$('#id_temp').text(resJson.temp + '℃');
+						$('#id_wetBulbTemp').text(resJson.wetBulbTemp + '℃');
+						$('#id_humity').text(resJson.humi + 'RH%');
+						$('#id_voltageAvg').text(resJson.Van.toFixed(3) + 'V');
+						$('#id_totalPowerFactor').text(resJson.PFtotal.toFixed(3));
+						$('#id_presure').text(resJson.presure + 'Pa');
+						$('#id_luminance').text(resJson.luminance + 'Lux');
+						$('#id_pm2_5').text(resJson.pm25 + 'μg/m³');
+						$('#pwm_freq').val(resJson.pwmFreq);
+						$('#pwm_min_duty').val(resJson.pwmMinDuty);
+						$('#pwm_max_duty').val(resJson.pwmMaxDuty);
+
+						var mode = resJson.mode;
+						console.log("Mode value: '" + mode + "'");
+						var deviceControl = document.getElementById('device-control');
+						var networkConfig = document.getElementById('network-config');
+						if ('normal' == mode) {
+							console.log("Showing device control");
+							deviceControl.style.display = 'block';
+							networkConfig.style.display = 'none';
+							$('#device_name').attr("disabled", "disabled");
+							$('#devicepwd').attr("disabled", "disabled");
+							$('#serverurl').attr("disabled", "disabled");
+							$('#ssid').attr("disabled", "disabled");
+							$('#input-pwd').attr("disabled", "disabled");
+							$('#scanap').attr("disabled", "true");
+							$('#connect').attr("disabled", "true");
+							$('#input_switch_1_name').attr("disabled", "disabled");
+							$('#input_switch_2_name').attr("disabled", "disabled");
+							if (!resJson.sw1) {
+								//console.log('close switch 1');
+								$("#checkbox_1").removeAttr("checked");
+							} else {
+								//console.log('open switch 1');
+								$('#checkbox_1').attr('checked', true);
+							}
+							if (!resJson.sw2) {
+								//console.log('close switch 2');
+								$("#checkbox_2").removeAttr("checked");
+							} else {
+								//console.log('open switch 2');
+								$('#checkbox_2').attr('checked', true);
+							}
+
+						} else {
+							console.log("Showing network config");
+							deviceControl.style.display = 'none';
+							networkConfig.style.display = 'block';
+							$('#color_r').attr("disabled", "true");
+							$('#color_g').attr("disabled", "true");
+							$('#color_b').attr("disabled", "true");
+							$('#checkbox_1').attr("disabled", "true");
+							$('#checkbox_2').attr("disabled", "true");
+							$('#btn_switch').attr("disabled", "true");
+						}
+					}
+						break;
+					case '-1':
+						//alert('Wrong password!');
+						$('#id_temp').text('query failed.');
+						$('#id_humity').text('query failed.');
+						$('#id_presure').text('query failed.');
+						$('#id_luminance').text('query failed.');
+						$('#id_pm2_5').text('query failed.');
+						break;
+					default:
+						//alert('Unkonwn error!\n'+resJson.msg);
+						$('#id_temp').text('unkonwn.');
+						$('#id_humity').text('unkonwn.');
+						$('#id_presure').text('unkonwn.');
+						$('#id_luminance').text('unkonwn.');
+						$('#id_pm2_5').text('unkonwn.');
+						break;
+				}
+			}).catch(function (e) {
+				is_waitting_response = 0
+				console.log("query error.")
+			});
+		}
+
+
+		window.addEventListener('DOMContentLoaded', function() {
+			console.log("DOM fully loaded");
+			var defaultPwd = "pengping";
+			$('#devicepwd').val(defaultPwd);
+			setTimeout(function() {
+				autoRefreshTimerHandler();
+				var queryTempTimer = setInterval(autoRefreshTimerHandler, 5000);
+			}, 100);
+		});
+	</script>
+
+
+
+
+	<script>
+		String.prototype.format = function () {
+			var args = arguments;
+			return this.replace(/\{(\d+)\}/g, function (m, i) {
+				return args[i];
+			});
+		}
+
+		$(function () {
+			$('#btn_switch').click(function () {
+				page_value_changed = 1
+				$('#btn_switch').addClass('loading').prop(
+					'disabled', true);
+				$.get('../status?mode=set&devicepwd={0}&fineHThreshold={1}&fineLThreshold={2}&pwmFreq={3}&pwmMinDuty={4}&pwmMaxDuty={5}&sprayPeriod={6}&minSparyTime={7}&minAddWaterInterval={8}&sw1={9}&sw2={10}'.format(
+					$('#devicepwd').val(),
+					$('#threhold_h').val(),
+					$('#threhold_l').val(),
+					$('#pwm_freq').val(),
+					$('#pwm_min_duty').val(),
+					$('#pwm_max_duty').val(),
+					$('#spray_period').val(),
+					$('#min_spary_time').val(),
+					$('#min_add_water_interval').val(),
+					$('#checkbox_1').is(':checked'),
+					$('#checkbox_2').is(':checked')),
+					function (resJsonStr) {
+						$('#btn_switch').removeClass('loading').prop('disabled', false);
+						resJson = JSON.parse(resJsonStr)
+						switch (resJson.errCode) {
+							case '0':
+								alert('success!\n');
+								break;
+							case '-1':
+								alert('Wrong password!');
+								break;
+							default:
+								alert('Unkonwn error!\n'
+									+ resJson.msg);
+						}
+						;
+
+					});
+			});
+
+			$('#btn_restart').click(function () {
+				page_value_changed = 1
+				$('#btn_restart').addClass('loading').prop('disabled', true);
+
+				$.get('../restart?devicepwd={0}'.format($('#devicepwd').val()),
+					function (resJsonStr) {
+						$('#btn_restart').removeClass('loading').prop('disabled', false);
+						resJson = JSON.parse(resJsonStr)
+						switch (resJson.errCode) {
+							case '0':
+								alert('Control success!\n');
+								break;
+							case '-1':
+								alert('Wrong password!');
+								break;
+							default:
+								alert('Unkonwn error!\n'
+									+ resJson.msg);
+						}
+						;
+
+					});
+			});
+
+			$('#btn_reset').click(function () {
+				page_value_changed = 1
+				$('#btn_reset').addClass('loading').prop('disabled', true);
+
+				$.get('../reset?devicepwd={0}'.format($('#devicepwd').val()),
+					function (resJsonStr) {
+						$('#btn_reset').removeClass('loading').prop('disabled', false);
+						resJson = JSON.parse(resJsonStr)
+						switch (resJson.errCode) {
+							case '0':
+								alert('Control success!\n');
+								break;
+							case '-1':
+								alert('Wrong password!');
+								break;
+							default:
+								alert('Unkonwn error!\n'
+									+ resJson.msg);
+						}
+						;
+
+					});
+			});
+
+			$('#connect').click(function () {
+				page_value_changed = 1
+				$('#connect').addClass('loading').prop('disabled', true);
+
+				$.get('../setwifi?ssid={0}&pwd={1}&serverurl={2}&devicepwd={3}&devicename={4}&sw1name={5}&sw2name={6}'
+					.format($('#ssid').val(),
+						$('#input-pwd').val(),
+						$('#serverurl').val(),
+						$('#devicepwd').val(),
+						$('#device_name').val(),
+						$('#input_switch_1_name').val(),
+						$('#input_switch_2_name').val()
+					),
+					function (resJsonStr) {
+						$('#connect').removeClass(
+							'loading').prop(
+								'disabled', false);
+						resJson = JSON.parse(resJsonStr)
+						switch (resJson.errCode) {
+							case '0':
+								alert('Connect success!\nPlease connect to AP:['
+									+ resJson.APName
+									+ '] \nand then open:['
+									+ resJson.url
+									+ '] by web browser.');
+								break;
+							case '-1':
+								alert('ERROR!\n'
+									+ resJson.msg);
+								break;
+							default:
+								alert('Unkonwn error!\n'
+									+ resJson.msg);
+						}
+						;
+					});
+			});
+
+			$('#scanap')
+				.click(
+					function () {
+						page_value_changed = 1
+						$('#scanap').addClass('loading').prop(
+							'disabled', true);
+
+						$
+							.get(
+								'../scanap',
+								function (resJsonStr) {
+									$('#scanap').removeClass(
+										'loading').prop(
+											'disabled', false);
+
+									var template = $('#item-ap')
+										.html();
+									var cos45 = sin45 = 0.70710678118655;
+									var html = '';
+									var count = 0;
+									resJson = JSON.parse(resJsonStr)
+									for (ssid in resJson) {
+
+										count = count + 1;
+										//var absRSSI=Math.abs(resJson[ssid])
+										var r = 0.3333 * Math.abs(resJson[ssid]) + 33.3333;
+										r = r > 20 ? 20
+											: (r < 0 ? 0
+												: r)
+
+										html += template
+											.format(
+												15
+												- r
+												* cos45,
+												20
+												- r
+												* sin45,
+												r,
+												15
+												+ r
+												* cos45,
+												ssid);
+										if (count > 20) {
+											break;
+										}
+									}
+									if (0 >= count) {
+										alert('Can not find anly AP.');
+										return;
+									}
+									$('#aplist').html(html)
+									$('#selectwifi').addClass(
+										'active');
+
+									$("#aplist div")
+										.click(
+											function () {
+												$(
+													'#selectwifi')
+													.removeClass(
+														'active');
+
+												var ssid = $(
+													this)
+													.children(
+														'.chip-content')
+													.html()
+												$(
+													'#ssid')
+													.val(
+														ssid);
+											});
+								});
+					});
+		})
+	</script>
+</body>
+
+</html>

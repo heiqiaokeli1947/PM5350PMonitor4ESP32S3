@@ -1,0 +1,7 @@
+
+class enumEV:
+    WATER_INPUT_EV = 1
+    WASTE_WATER_EV = 2
+    WATER_SPRAY_EV_1 = 3
+    WATER_SPRAY_EV_2 = 4
+    WATER_SPRAY_EV_3 = 5
