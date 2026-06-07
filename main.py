@@ -15,8 +15,8 @@ import micropython as mp
 
 #import domain.LogUtils as LogUtils
 
-#固件使用：ESP32_GENERIC-20240222-v1.22.2.bin
-
+#固件使用：ESP32_GENERIC_S3-SPIRAM_OCT-20250415-v1.25.0.bin
+LEDArrayColor = (255, 0, 0)
 # from machine import RTC
 
 # rtc = RTC()
@@ -122,6 +122,7 @@ gotIpNow = ""
 def broadcastIPInfo(name):
     global gotIpLast
     global gotIpNow
+    global LEDArrayColor
     while True:
         print("{}:detect IP info...".format(name))
         gotIpNow = wifi.getStationIP()
@@ -132,7 +133,11 @@ def broadcastIPInfo(name):
             gotIpLast = gotIpNow
         elif gotIpNow:
             print("get IP success:{}".format(gotIpNow))
+            LEDArrayColor = (0, 255, 0)
+            bspInstance.setLEDArray(LEDArrayColor)
         else:
+            LEDArrayColor = (255, 0, 255)
+            bspInstance.setLEDArray(LEDArrayColor)
             print("get IP failed.")
         utime.sleep_ms(5000)
 
@@ -142,10 +147,12 @@ if "normal" == systemConfig["mode"] and wifi.connectToWifi(systemConfig["wifinam
     _thread.start_new_thread(broadcastIPInfo, ("Thread-broadcastIPInfo",))
 else:
     systemConfig["mode"] = "config"
+    LEDArrayColor = (0, 0, 255)
+    bspInstance.setLEDArray(LEDArrayColor)
     print("start config mode...")
 
     whenGotoConfigMode = utime.time()
-    wifi.startAP(systemConfig["APName"], systemConfig["APPwd"])
+    wifi.startAP(systemConfig["APName"], systemConfig["APPwd"], True)
     createConfigTimer(10)
 
 # 初始化webserver
@@ -193,12 +200,14 @@ def handler(request):
         return ujson.dumps(res)
     elif "mode" in request.args and request.args["mode"] == "get":
         res = {"errCode": "0", "mode": "normal", "sw1": True, "sw2": False}
-
-        res["mode"] = systemConfig["mode"]
-        res["sw1name"] = systemConfig["sw1name"]
-        res["sw2name"] = systemConfig["sw2name"]
-        res["devicename"] = systemConfig["devicename"]
-        res["serverurl"] = systemConfig["serverurl"]
+        res.update(systemConfig)
+        # res["mode"] = systemConfig["mode"]
+        # res["sw1name"] = systemConfig["sw1name"]
+        # res["sw2name"] = systemConfig["sw2name"]
+        # res["devicename"] = systemConfig["devicename"]
+        # res["serverurl"] = systemConfig["serverurl"]
+        # res["fineHThreshold"] = systemConfig["fineHThreshold"]
+        # res["fineLThreshold"] = systemConfig["fineLThreshold"]
 
         res["temp"] = bspInstance.getSensorData().temp
         res["humi"] = bspInstance.getSensorData().humi
@@ -214,14 +223,11 @@ def handler(request):
     #'../status?mode=set&devicepwd={0}&r={1}&g={2}&b={3}&sw1={4}&sw2={5}
     elif "mode" in request.args and request.args["mode"] == "set":
         res = {"errCode": "0", "msg": "set finish."}
-        db.save({"minAddWaterInterval": request.args["minAddWaterInterval"],
-                 "pwmFreq": request.args["pwmFreq"],
+        db.save({"fineHThreshold": request.args["fineHThreshold"],
+                "fineLThreshold": request.args["fineLThreshold"],
+                "pwmFreq": request.args["pwmFreq"],
                  "pwmMinDuty": request.args["pwmMinDuty"],
                  "pwmMaxDuty": request.args["pwmMaxDuty"],
-                 "sprayPeriod": request.args["sprayPeriod"],
-                 "minSparyTime": request.args["minSparyTime"],
-                 "fineLThreshold": request.args["fineLThreshold"],
-                 "fineHThreshold": request.args["fineHThreshold"],
                  "sw1": request.args["sw1"],
                  "sw2": request.args["sw2"]})
         print("set config.")
@@ -325,7 +331,7 @@ def runWebApp(name):
 
 
 try:
-    _thread.stack_size(8 * 1024)
+    _thread.stack_size(32 * 1024)
     _thread.start_new_thread(runWebApp, ("Thread:WebApp",))
 except OSError as e:
     print(f"Error starting thread: {e}")
@@ -345,13 +351,18 @@ runCounter = 0
 while True:
     sysTask()
 
-    if runCounter % 90 == 0:
+    if runCounter % 300 == 0:
         print("-------------Before GC-------------")
         mp.mem_info()
         gc.collect()
         print("-------------After  GC-------------")
         mp.mem_info()
 
+    if runCounter % 2 == 0:
+        bspInstance.setLEDArray((0, 0, 0))
+    else:
+        bspInstance.setLEDArray(LEDArrayColor)
+		
     if (runCounter % 3600) == 0:  # 每一个小时保存一次数据，但当前次方法30s运行一次，有风险
         saveData(None)
         print("Main:save data to db finish.")

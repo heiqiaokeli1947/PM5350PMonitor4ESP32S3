@@ -60,6 +60,10 @@ class AAC(object):
     
     
     def ts(self, tg, rh, diff):
+        #print("tg={},rh={},diff={}".format(tg, rh, diff))
+        if tg == -9999 or rh == -99.99:
+            print("AAC:tg or rh is invalid.")
+            return -9999 #无效值
         count = 0
         tsTemp = tg - 5 #起始湿度为干球温度-5摄氏度
         tsFitStep = 0.01 #ts调整步长 单位:摄氏度

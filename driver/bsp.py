@@ -1,6 +1,7 @@
-from machine import Pin, PWM, SoftI2C, Timer
+from machine import Pin, PWM, I2C, SoftI2C, Timer
 from micropython import const
 import domain.sensorData as sensorData
+import neopixel
 
 import driver.hdc1080 as hdc1080
 import driver.PM5350P as pm5350p
@@ -16,7 +17,8 @@ class BSP:
 
         # esp32 引脚2是一颗自带的 led的灯
         self.__LED = Pin(2, Pin.OUT, value=0)
-
+        # WS2812 8*1矩阵
+        self.__LEDArray = neopixel.NeoPixel(Pin(48), 1)  #16->48
         #PM5350实例
         self.__pm5350pInstance = None
         self.__pm5350pData = {}
@@ -37,6 +39,7 @@ class BSP:
         self.__sensorReadTimer = Timer(1)
         self.__sensorReadTimer.init(mode=Timer.PERIODIC, period=5000, callback=self.timerHandler)
 
+        self.setLEDArray((255, 255, 255))
         self.aac = AAC.AAC()
     def setConfig(self, config):
         self.config = config
@@ -46,10 +49,10 @@ class BSP:
         print("init pwm...")
         # PWM控制
         self.__fanSpeed = 0
-        self.__fan1PwmPin = PWM(Pin(3),freq=self.config["pwm1freq"], duty=self.config["pwm1default"])
-        self.__fan2PwmPin = PWM(Pin(46),freq=self.config["pwm2freq"], duty=self.config["pwm2default"])
-        self.__fan3PwmPin = PWM(Pin(9),freq=self.config["pwm3freq"], duty=self.config["pwm3default"])
-        self.__fan4PwmPin = PWM(Pin(10),freq=self.config["pwm4freq"], duty=self.config["pwm4default"])
+        self.__fan1PwmPin = PWM(Pin(46),freq=self.config["pwm1freq"], duty=self.config["pwm1default"])
+        self.__fan2PwmPin = PWM(Pin(9),freq=self.config["pwm2freq"], duty=self.config["pwm2default"])
+        self.__fan3PwmPin = PWM(Pin(10),freq=self.config["pwm3freq"], duty=self.config["pwm3default"])
+        self.__fan4PwmPin = PWM(Pin(11),freq=self.config["pwm4freq"], duty=self.config["pwm4default"])
         # 初始化PWM对象
         self.__fan1PwmPin.init(freq=self.config["pwm1freq"], duty=self.config["pwm1default"])
         self.__fan2PwmPin.init(freq=self.config["pwm2freq"], duty=self.config["pwm2default"])
@@ -59,6 +62,10 @@ class BSP:
         print("init PM5350P...")
         self.__pm5350pInstance = pm5350p.PM5350P(self.config["modbusSlaveAddr"],self.config["modbusBadud"])
 
+    def setLEDArray(self, color):
+        for i in range(1):
+            self.__LEDArray[i] = color
+        self.__LEDArray.write()
     def readPm5350p(self):
         return self.__pm5350pData
 
@@ -66,14 +73,15 @@ class BSP:
         self.__sensorData.temp = self.__hdc1080.temperature
         self.__sensorData.humi = self.__hdc1080.humidity
         self.__sensorData.wetBulbTemp = self.aac.ts(self.__sensorData.temp, self.__sensorData.humi/100.0, 0.1)
-        # print("hdc1080:temp={},humi={}".format(self.sensorData.temp, self.sensorData.humi))
+        print("hdc1080:temp={},humi={},wetBulbTemp={}".format(self.__sensorData.temp, self.__sensorData.humi,self.__sensorData.wetBulbTemp))
 
     def pm5350pTimerHandler(self, timer):
         self.__pm5350pData = self.__pm5350pInstance.read()
+        #print("pm5350p:{}".format(self.__pm5350pData))
 
     def timerHandler(self, timer):
         print("read sensor data...")
-        #self.hdc1080TimerHandler(timer)
+        self.hdc1080TimerHandler(timer)
         #self.pm5350pTimerHandler(timer)
 
     def setLed(self, status):
