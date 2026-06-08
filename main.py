@@ -35,7 +35,8 @@ defaulteSystemConfig = {"deviceusername": "admin", "devicepwd": "pengping", "wif
                         "APIP": "123", "longitude": 104.0375, "pwm1freq": 25000, "pwm1default": 0, "pwm1min": 15,
                         "pwm1max": 100, "pwm2freq": 25000, "pwm2default": 0, "pwm2min": 15, "pwm2max": 100,
                         "pwm3freq": 25000, "pwm3default": 0, "pwm3min": 15, "pwm3max": 100, "pwm4freq": 25000,
-                        "pwm4default": 0, "pwm4min": 15, "pwm4max": 100, "fanHThreshold": 36, "fanLThreshold": 31.5,
+                        "pwm4default": 0, "pwm4min": 15, "pwm4max": 100, "sw1": True, "sw2": False,
+                        "fanHThreshold": 36, "fanLThreshold": 31.5,
                         "modbusSlaveAddr": 6, "modbusBadud": 38400}
 systemConfig = db.get("systemConfig")
 
@@ -194,13 +195,20 @@ def handler(request):
     global totalRunTime
     global runCounter
     global pm5350Data
+    global systemConfig
     whenGotoConfigMode = utime.time()
     if "devicepwd" not in request.args or request.args["devicepwd"] != systemConfig["devicepwd"]:
         res = {"errCode": "-1", "msg": "invalid device password."}
         return ujson.dumps(res)
     elif "mode" in request.args and request.args["mode"] == "get":
-        res = {"errCode": "0", "mode": "normal", "sw1": True, "sw2": False}
+        res = {"errCode": "0", "mode": systemConfig.get("mode", "normal"),
+               "sw1": systemConfig.get("sw1", True),
+               "sw2": systemConfig.get("sw2", False)}
         res.update(systemConfig)
+        if "sw1" not in res:
+            res["sw1"] = True
+        if "sw2" not in res:
+            res["sw2"] = False
         # res["mode"] = systemConfig["mode"]
         # res["sw1name"] = systemConfig["sw1name"]
         # res["sw2name"] = systemConfig["sw2name"]
@@ -223,14 +231,34 @@ def handler(request):
     #'../status?mode=set&devicepwd={0}&r={1}&g={2}&b={3}&sw1={4}&sw2={5}
     elif "mode" in request.args and request.args["mode"] == "set":
         res = {"errCode": "0", "msg": "set finish."}
-        db.save({"fineHThreshold": request.args["fineHThreshold"],
-                "fineLThreshold": request.args["fineLThreshold"],
-                "pwmFreq": request.args["pwmFreq"],
-                 "pwmMinDuty": request.args["pwmMinDuty"],
-                 "pwmMaxDuty": request.args["pwmMaxDuty"],
-                 "sw1": request.args["sw1"],
-                 "sw2": request.args["sw2"]})
-        print("set config.")
+        if "fanHThreshold" in request.args:
+            systemConfig["fanHThreshold"] = float(request.args["fanHThreshold"])
+        if "fanLThreshold" in request.args:
+            systemConfig["fanLThreshold"] = float(request.args["fanLThreshold"])
+        if "pwm1freq" in request.args:
+            systemConfig["pwm1freq"] = int(request.args["pwm1freq"])
+        if "pwm1min" in request.args:
+            systemConfig["pwm1min"] = int(request.args["pwm1min"])
+        if "pwm1max" in request.args:
+            systemConfig["pwm1max"] = int(request.args["pwm1max"])
+        if "sw1" in request.args:
+            sw1_val_str = str(request.args["sw1"]).lower()
+            if sw1_val_str in ["true", "1"]:
+                systemConfig["sw1"] = True
+            else:
+                systemConfig["sw1"] = False
+        if "sw2" in request.args:
+            sw2_val_str = str(request.args["sw2"]).lower()
+            if sw2_val_str in ["true", "1"]:
+                systemConfig["sw2"] = True
+            else:
+                systemConfig["sw2"] = False
+        db.save({"systemConfig": ujson.dumps(systemConfig)})
+        bspInstance.setConfig(systemConfig)
+        print("set config finish: fanHThreshold={}, fanLThreshold={}, pwm1freq={}, pwm1min={}, pwm1max={}, sw1={}, sw2={}".format(
+            systemConfig.get("fanHThreshold"), systemConfig.get("fanLThreshold"),
+            systemConfig.get("pwm1freq"), systemConfig.get("pwm1min"), systemConfig.get("pwm1max"),
+            systemConfig.get("sw1"), systemConfig.get("sw2")))
         return ujson.dumps(res)
     else:
         res = {"errCode": "-1", "msg": "unsupported operation."}

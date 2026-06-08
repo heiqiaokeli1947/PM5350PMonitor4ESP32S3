@@ -420,8 +420,8 @@
                         luminance: [],
                         presure: [],
                         Ptotal: 0,
-                        fineHThreshold: 0,
-                        fineLThreshold: 0
+                        fanHThreshold: 0,
+                        fanLThreshold: 0
                     };
 
                     plotData.x = Array.from({ length: this.buffer.length }, (_, i) => i).reverse();
@@ -439,8 +439,8 @@
                     if (this.buffer.length > 0) {
                         const last = this.buffer[this.buffer.length - 1];
                         plotData.Ptotal = last.Ptotal;
-                        plotData.fineHThreshold = last.fineHThreshold;
-                        plotData.fineLThreshold = last.fineTempThreshold;
+                        plotData.fanHThreshold = last.fanHThreshold;
+                        plotData.fanLThreshold = last.fanLThreshold;
                     }
 
                     return plotData;
@@ -485,11 +485,11 @@
                             sw2Name: rawData.sw2name || 'S2'
                         },
                         settings: {
-                            fineHThreshold: rawData.fineHThreshold || '----',
-                            fineLThreshold: rawData.fineLThreshold || '----',
-                            pwmFreq: rawData.pwmFreq || '----',
-                            pwmMinDuty: rawData.pwmMinDuty || '----',
-                            pwmMaxDuty: rawData.pwmMaxDuty || '----'
+                            fanHThreshold: rawData.fanHThreshold || '----',
+                            fanLThreshold: rawData.fanLThreshold || '----',
+                            pwmFreq: rawData.pwm1freq || '----',
+                            pwmMinDuty: rawData.pwm1min || '----',
+                            pwmMaxDuty: rawData.pwm1max || '----'
                         },
                         network: {
                             serverurl: rawData.serverurl || '',
@@ -575,8 +575,8 @@
             const view = createBaseView('#device-control');
             view.update = function(deviceData) {
                 const settings = deviceData.data.settings;
-                $(CONFIG.SELECTORS.THRESHOLD_H).val(settings.fineHThreshold);
-                $(CONFIG.SELECTORS.THRESHOLD_L).val(settings.fineLThreshold);
+                $(CONFIG.SELECTORS.THRESHOLD_H).val(settings.fanHThreshold);
+                $(CONFIG.SELECTORS.THRESHOLD_L).val(settings.fanLThreshold);
                 $(CONFIG.SELECTORS.PWM_FREQ).val(settings.pwmFreq);
                 $(CONFIG.SELECTORS.PWM_MIN_DUTY).val(settings.pwmMinDuty);
                 $(CONFIG.SELECTORS.PWM_MAX_DUTY).val(settings.pwmMaxDuty);
@@ -635,8 +635,8 @@
                             case '温度': dataset.data.push(plotData.temp.at(-1)); break;
                             case '湿度': dataset.data.push(plotData.humi.at(-1)); dataset.hidden = true; break;
                             case '功率': dataset.data.push(plotData.Ptotal); dataset.hidden = false; break;
-                            case '高阈值': dataset.data.push(plotData.fineHThreshold); break;
-                            case '低阈值': dataset.data.push(plotData.fineLThreshold); break;
+                            case '高阈值': dataset.data.push(plotData.fanHThreshold); break;
+                            case '低阈值': dataset.data.push(plotData.fanLThreshold); break;
                         }
                     });
                     data.labels = plotData.x;
@@ -820,7 +820,7 @@
 
                     try {
                         const url = UTILS.formatString(
-                            '{0}?mode=set&devicepwd={1}&fineHThreshold={2}&fineLThreshold={3}&pwmFreq={4}&pwmMinDuty={5}&pwmMaxDuty={6}&sw1={7}&sw2={8}',
+                            '{0}?mode=set&devicepwd={1}&fanHThreshold={2}&fanLThreshold={3}&pwm1freq={4}&pwm1min={5}&pwm1max={6}&sw1={7}&sw2={8}',
                             CONFIG.API.STATUS,
                             $(CONFIG.SELECTORS.DEVICEPWD).val(),
                             $(CONFIG.SELECTORS.THRESHOLD_H).val(),
