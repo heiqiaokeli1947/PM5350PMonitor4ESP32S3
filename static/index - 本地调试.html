@@ -45,53 +45,131 @@
 				<label>Device name:<span id="device_name_show">PM5350P</span></label><br />
 			</div>
 
-			<canvas id="monitorChart" width=100% height=100px></canvas>
-
-			<div class="form-group">
-				<label class="form-label" for="select-ap">Sensor data:</label>
-				<label style="margin-left: 5%">本次启动运行时间:</label>
-				<span class="label" id="id_runtime">120s</span><br />
-
-				<label style="margin-left: 5%">总运行时间:</label>
-				<span class="label" id="id_totalRuntime">3600s</span><br />
-
-				<label style="margin-left: 5%">平均电压:</label>
-				<span class="label" id="id_voltageAvg">220.5V</span><br />
-
-				<label style="margin-left: 5%">平均电流:</label>
-				<span class="label" id="id_currentAvg">5.2A</span><br />
-
-				<label style="margin-left: 5%">总功率:</label>
-				<span class="label" id="id_totalPower">1.14kW</span><br />
-				<label style="margin-left: 5%">频率:</label>
-				<span class="label" id="id_powerFreq">50.0Hz</span><br />
-				
-
-				<label style="margin-left: 5%">总功率因数:</label>
-				<span class="label" id="id_totalPowerFactor">0.95</span><br />
-				
-				<label style="margin-left: 5%">总电能:</label>
-				<span class="label" id="id_totalEnergy">100.5kWh</span><br />
-
-				<label style="margin-left: 5%">温度:</label>
-				<span class="label" id="id_temp">25.5℃</span><br />
-				
-				<label style="margin-left: 5%">湿球温度:</label>
-				<span class="label" id="id_wetBulbTemp">20.3℃</span><br />
-
-				<label style="margin-left: 5%">相对湿度:</label>
-				<span class="label" id="id_humity">60RH%</span><br />
-
-				<label style="margin-left: 5%">气压:</label>
-				<span class="label" id="id_presure">101325Pa</span><br />
-
-				<label style="margin-left: 5%">照度:</label>
-				<span class="label" id="id_luminance">500Lux</span><br />
-
-				<label style="margin-left: 5%">PM2.5:</label>
-				<span class="label" id="id_pm2_5">25μg/m³</span><br />
+			<!-- 区域切换按钮 -->
+			<div class="form-group" style="overflow: hidden; margin-bottom: 15px;">
+				<button type="button" id="btn_sensor" class="btn btn-primary float-left active">传感器数据</button>
+				<button type="button" id="btn_setting" class="btn btn-primary float-right">参数设置</button>
 			</div>
 
+			<!-- 传感器数据区域 -->
+			<div id="sensor-section">
+				<canvas id="monitorChart" width=100% height=100px></canvas>
+
+				<!-- 传感器数据仪表板 -->
+				<div class="form-group" style="margin-top: 1rem;">
+					<label class="form-label" style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.75rem;">传感器数据</label>
+				</div>
+
+				<!-- 卡片网格容器 - 响应式多列布局 -->
+				<div class="grid grid-xs-1 grid-sm-2 grid-md-2 grid-lg-2" style="gap: 0.75rem;">
+					<!-- 运行时间卡片 -->
+					<div class="card">
+						<div class="card-header">
+							<div class="card-title h5">运行时间</div>
+						</div>
+						<div class="card-body" style="padding: 0.75rem;">
+							<div class="grid grid-2">
+								<div class="column">
+									<div class="text-gray text-sm mb-1">本次启动</div>
+									<div class="text-lg font-bold text-primary" id="id_runtime">120s</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-sm mb-1">总运行时间</div>
+									<div class="text-lg font-bold text-primary" id="id_totalRuntime">3600s</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- 电力参数卡片 -->
+					<div class="card">
+						<div class="card-header bg-blue">
+							<div class="card-title h5 text-white">电力参数</div>
+						</div>
+						<div class="card-body" style="padding: 0.75rem;">
+							<div class="grid grid-3">
+								<div class="column">
+									<div class="text-gray text-xs mb-1">电压</div>
+									<div class="text-sm font-semibold text-blue" id="id_voltageAvg">220.5V</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-xs mb-1">电流</div>
+									<div class="text-sm font-semibold text-blue" id="id_currentAvg">5.2A</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-xs mb-1">功率</div>
+									<div class="text-sm font-semibold text-blue" id="id_totalPower">1.14kW</div>
+								</div>
+							</div>
+							<div class="grid grid-3 mt-1">
+								<div class="column">
+									<div class="text-gray text-xs mb-1">频率</div>
+									<div class="text-xs font-semibold text-gray" id="id_powerFreq">50.0Hz</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-xs mb-1">功率因数</div>
+									<div class="text-xs font-semibold text-gray" id="id_totalPowerFactor">0.95</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-xs mb-1">电能</div>
+									<div class="text-xs font-semibold text-gray" id="id_totalEnergy">100.5kWh</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- 环境参数卡片 -->
+					<div class="card">
+						<div class="card-header bg-green">
+							<div class="card-title h5 text-white">环境参数</div>
+						</div>
+						<div class="card-body" style="padding: 0.75rem;">
+							<div class="grid grid-3">
+								<div class="column">
+									<div class="text-gray text-xs mb-1">温度</div>
+									<div class="text-md font-bold" style="color: #e74c3c;" id="id_temp">25.5℃</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-xs mb-1">湿球温度</div>
+									<div class="text-md font-bold" style="color: #3498db;" id="id_wetBulbTemp">20.3℃</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-xs mb-1">湿度</div>
+									<div class="text-md font-bold" style="color: #27ae60;" id="id_humity">60%</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- 空气质量卡片 -->
+					<div class="card">
+						<div class="card-header bg-purple">
+							<div class="card-title h5 text-white">空气质量</div>
+						</div>
+						<div class="card-body" style="padding: 0.75rem;">
+							<div class="grid grid-3">
+								<div class="column">
+									<div class="text-gray text-xs mb-1">气压</div>
+									<div class="text-sm font-semibold text-purple" id="id_presure">101325Pa</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-xs mb-1">照度</div>
+									<div class="text-sm font-semibold text-purple" id="id_luminance">500Lux</div>
+								</div>
+								<div class="column">
+									<div class="text-gray text-xs mb-1">PM2.5</div>
+									<div class="text-sm font-semibold text-purple" id="id_pm2_5">25μg/m³</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div style="height: 20px;"></div>
+			</div> <!-- End sensor-section -->
+
+			<!-- 参数设置区域 -->
+			<div id="setting-section" style="display: none;">
 			<div class="form-group">
 				<label>温度高阈值(℃):</label>
 				<div class="input-group"><input type="text" id="threhold_h" class="form-input" value="36" placeholder="外机散热器翅片温度高阈值." onchange="pageValueChange()" oninput="pageValueChange()" /><br />
@@ -121,12 +199,15 @@
 				<br />
 			</div>
 			<br />
-			<div class="form-group">
+			<div class="form-group" style="overflow: hidden;">
 				<button type="button" id="btn_reset" class="btn btn-primary float-left"> reset </button>
 				<button type="button" id="btn_restart" class="btn btn-primary float-right">restart</button>
 				<br />
 			</div>
+			<br />
+			</div> <!-- End setting-section -->
 		</section>
+		<br />
 		<br />
 		<section class="container grid-480">
 			<header class="text-center">
@@ -581,6 +662,21 @@
 					$('#btn_switch').removeClass('loading').prop('disabled', false);
 					alert('success!\n');
 				}, 500);
+			});
+
+			// 区域切换按钮
+			$('#btn_sensor').click(function () {
+				$('#sensor-section').show();
+				$('#setting-section').hide();
+				$('#btn_sensor').addClass('active');
+				$('#btn_setting').removeClass('active');
+			});
+
+			$('#btn_setting').click(function () {
+				$('#sensor-section').hide();
+				$('#setting-section').show();
+				$('#btn_sensor').removeClass('active');
+				$('#btn_setting').addClass('active');
 			});
 
 			$('#btn_restart').click(function () {

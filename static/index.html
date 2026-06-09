@@ -58,129 +58,190 @@
                 <label>Device name:<span id="device_name_show">----</span></label>
             </div>
 
-            <!-- 图表 -->
-            <canvas id="monitorChart" width="100%" height="100px"></canvas>
-
-            <!-- 传感器数据 -->
-            <div class="form-group">
-                <label class="form-label" for="select-ap">Sensor data:</label>
-                <label style="margin-left: 5%">本次启动运行时间:</label>
-                <span class="label" id="id_runtime">----s</span>
-                <br />
-
-                <label style="margin-left: 5%">总运行时间:</label>
-                <span class="label" id="id_totalRuntime">----s</span>
-                <br />
-
-                <label style="margin-left: 5%">平均电压:</label>
-                <span class="label" id="id_voltageAvg">----V</span>
-                <br />
-
-                <label style="margin-left: 5%">平均电流:</label>
-                <span class="label" id="id_currentAvg">----A</span>
-                <br />
-
-                <label style="margin-left: 5%">总功率:</label>
-                <span class="label" id="id_totalPower">----kW</span>
-                <br />
-
-                <label style="margin-left: 5%">频率:</label>
-                <span class="label" id="id_powerFreq">----Hz</span>
-                <br />
-
-                <label style="margin-left: 5%">总功率因数:</label>
-                <span class="label" id="id_totalPowerFactor">----</span>
-                <br />
-
-                <label style="margin-left: 5%">总电能:</label>
-                <span class="label" id="id_totalEnergy">----Wh</span>
-                <br />
-
-                <label style="margin-left: 5%">温度:</label>
-                <span class="label" id="id_temp">----℃</span>
-                <br />
-
-                <label style="margin-left: 5%">湿球温度:</label>
-                <span class="label" id="id_wetBulbTemp">----℃</span>
-                <br />
-
-                <label style="margin-left: 5%">相对湿度:</label>
-                <span class="label" id="id_humity">----RH%</span>
-                <br />
-
-                <label style="margin-left: 5%">气压:</label>
-                <span class="label" id="id_presure">----Pa</span>
-                <br />
-
-                <label style="margin-left: 5%">照度:</label>
-                <span class="label" id="id_luminance">----Lux</span>
-                <br />
-
-                <label style="margin-left: 5%">PM2.5:</label>
-                <span class="label" id="id_pm2_5">----μg/m³</span>
-                <br />
+            <!-- 区域切换按钮 -->
+            <div class="form-group" style="overflow: hidden; margin-bottom: 15px;">
+                <button type="button" id="btn_sensor" class="btn btn-primary float-left active">传感器数据</button>
+                <button type="button" id="btn_setting" class="btn btn-primary float-right">参数设置</button>
             </div>
 
-            <!-- 参数设置 -->
-            <div class="form-group">
-                <label>温度高阈值 (℃):</label>
-                <div class="input-group">
-                    <input type="text" id="threhold_h" class="form-input" value="----"
-                        placeholder="外机散热器翅片温度高阈值." />
+            <!-- 传感器数据区域 -->
+            <div id="sensor-section">
+                <!-- 图表 -->
+                <canvas id="monitorChart" width="100%" height="100px"></canvas>
+
+                <!-- 传感器数据仪表板 -->
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label class="form-label" style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.75rem;">传感器数据</label>
                 </div>
 
-                <label>温度低阈值 (℃):</label>
-                <div class="input-group">
-                    <input type="text" id="threhold_l" class="form-input" value="----"
-                        placeholder="外机散热器翅片温度低阈值：喷水启动阈值." />
+                <!-- 卡片网格容器 - 响应式多列布局 -->
+                <div class="columns col-mx-auto" style="max-width: 100%;">
+                    <!-- 电力参数卡片 -->
+                    <div class="column col-6 col-sm-6 col-md-6 col-lg-3">
+                        <div class="card">
+                            <div class="card-header bg-blue">
+                                <div class="card-title h5 text-white">电力参数</div>
+                            </div>
+                            <div class="card-body" style="padding: 0.75rem;">
+                                <div class="grid grid-3">
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">电压</div>
+                                        <div class="text-sm font-semibold text-blue" id="id_voltageAvg">----V</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">电流</div>
+                                        <div class="text-sm font-semibold text-blue" id="id_currentAvg">----A</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">功率</div>
+                                        <div class="text-sm font-semibold text-blue" id="id_totalPower">----kW</div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-3 mt-1">
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">频率</div>
+                                        <div class="text-xs font-semibold text-gray" id="id_powerFreq">----Hz</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">功率因数</div>
+                                        <div class="text-xs font-semibold text-gray" id="id_totalPowerFactor">----</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">电能</div>
+                                        <div class="text-xs font-semibold text-gray" id="id_totalEnergy">----Wh</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 环境参数卡片 -->
+                    <div class="column col-6 col-sm-6 col-md-6 col-lg-3">
+                        <div class="card">
+                            <div class="card-header bg-green">
+                                <div class="card-title h5 text-white">环境参数</div>
+                            </div>
+                            <div class="card-body" style="padding: 0.75rem;">
+                                <div class="grid grid-3">
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">温度</div>
+                                        <div class="text-md font-bold" style="color: #e74c3c;" id="id_temp">----℃</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">湿度</div>
+                                        <div class="text-md font-bold" style="color: #27ae60;" id="id_humity">----%</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">湿球温度</div>
+                                        <div class="text-md font-bold" style="color: #3498db;" id="id_wetBulbTemp">----℃</div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-3 mt-2">
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">气压</div>
+                                        <div class="text-sm font-semibold text-purple" id="id_presure">----Pa</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">照度</div>
+                                        <div class="text-sm font-semibold text-purple" id="id_luminance">----Lux</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-xs mb-1">PM2.5</div>
+                                        <div class="text-sm font-semibold text-purple" id="id_pm2_5">----μg/m³</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 运行时间卡片 -->
+                    <div class="column col-12 col-sm-12 col-md-12 col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title h5">运行时间</div>
+                            </div>
+                            <div class="card-body" style="padding: 0.75rem;">
+                                <div class="grid grid-2">
+                                    <div class="column">
+                                        <div class="text-gray text-sm mb-1">本次启动</div>
+                                        <div class="text-lg font-bold text-primary" id="id_runtime">----s</div>
+                                    </div>
+                                    <div class="column">
+                                        <div class="text-gray text-sm mb-1">总运行时间</div>
+                                        <div class="text-lg font-bold text-primary" id="id_totalRuntime">----s</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <label>PWM 频率 (Hz):</label>
-                <div class="input-group">
-                    <input type="text" id="pwm_freq" class="form-input" value="----"
-                        placeholder="PWM 频率 (Hz)." />
-                </div>
-
-                <label>最小 PWM 占空比 (%):</label>
-                <div class="input-group">
-                    <input type="text" id="pwm_min_duty" class="form-input" value="----"
-                        placeholder="PWM 最小占空比." />
-                </div>
-
-                <label>最大 PWM 占空比 (%):</label>
-                <div class="input-group">
-                    <input type="text" id="pwm_max_duty" class="form-input" value="----"
-                        placeholder="PWM 最大占空比." />
-                </div>
+                <div style="height: 20px;"></div>
             </div>
 
-            <!-- 开关控制 -->
-            <div class="form-group" style="display: flex; align-items: center;">
-                <label class="form-label" for="select-ap" style="margin-right: 10px;">开关控制:</label>
-                <label class="form-switch" style="margin-right: 15px;">
-                    <input type="checkbox" id="checkbox_1" />
-                    <i class="form-icon"></i>
-                    <span id="sw_1_name">---</span>
-                </label>
-                <label class="form-switch" style="margin-right: 20px;">
-                    <input type="checkbox" id="checkbox_2" />
-                    <i class="form-icon"></i>
-                    <span id="sw_2_name">---</span>
-                </label>
-            </div>
+            <!-- 参数设置区域 -->
+            <div id="setting-section" style="display: none;">
+                <!-- 参数设置 -->
+                <div class="form-group">
+                    <label>温度高阈值 (℃):</label>
+                    <div class="input-group">
+                        <input type="text" id="threhold_h" class="form-input" value="----"
+                            placeholder="外机散热器翅片温度高阈值." />
+                    </div>
 
-            <!-- 开关控制按钮 -->
-            <div class="form-group" style="text-align: right;">
-                <button type="button" id="btn_switch" class="btn btn-primary">Apply setting</button>
-            </div>
+                    <label>温度低阈值 (℃):</label>
+                    <div class="input-group">
+                        <input type="text" id="threhold_l" class="form-input" value="----"
+                            placeholder="外机散热器翅片温度低阈值：喷水启动阈值." />
+                    </div>
 
-            <!-- 重启/重置按钮 -->
-            <div class="form-group">
-                <button type="button" id="btn_reset" class="btn btn-primary float-left"> reset </button>
-                <button type="button" id="btn_restart" class="btn btn-primary float-right">restart</button>
-            </div>
+                    <label>PWM 频率 (Hz):</label>
+                    <div class="input-group">
+                        <input type="text" id="pwm_freq" class="form-input" value="----"
+                            placeholder="PWM 频率 (Hz)." />
+                    </div>
 
-            <div style="height: 20px;"></div>
+                    <label>最小 PWM 占空比 (%):</label>
+                    <div class="input-group">
+                        <input type="text" id="pwm_min_duty" class="form-input" value="----"
+                            placeholder="PWM 最小占空比." />
+                    </div>
+
+                    <label>最大 PWM 占空比 (%):</label>
+                    <div class="input-group">
+                        <input type="text" id="pwm_max_duty" class="form-input" value="----"
+                            placeholder="PWM 最大占空比." />
+                    </div>
+                </div>
+
+                <!-- 开关控制 -->
+                <div class="form-group" style="display: flex; align-items: center;">
+                    <label class="form-label" for="select-ap" style="margin-right: 10px;">开关控制:</label>
+                    <label class="form-switch" style="margin-right: 15px;">
+                        <input type="checkbox" id="checkbox_1" />
+                        <i class="form-icon"></i>
+                        <span id="sw_1_name">---</span>
+                    </label>
+                    <label class="form-switch" style="margin-right: 20px;">
+                        <input type="checkbox" id="checkbox_2" />
+                        <i class="form-icon"></i>
+                        <span id="sw_2_name">---</span>
+                    </label>
+                </div>
+
+                <!-- 开关控制按钮 -->
+                <div class="form-group" style="text-align: right;">
+                    <button type="button" id="btn_switch" class="btn btn-primary">Apply setting</button>
+                </div>
+
+                <!-- 重启/重置按钮 -->
+                <div class="form-group" style="overflow: hidden;">
+                    <button type="button" id="btn_reset" class="btn btn-primary float-left"> reset </button>
+                    <button type="button" id="btn_restart" class="btn btn-primary float-right">restart</button>
+                </div>
+
+                <div style="height: 40px;"></div>
+            </div>
         </section>
 
         <!-- 网络配置区域 -->
@@ -816,6 +877,29 @@
                     $(CONFIG.SELECTORS.BTN_SCANAP).click(function() {
                         self.handleScanAP();
                     });
+
+                    // 区域切换按钮
+                    $('#btn_sensor').click(function() {
+                        self.showSensorSection();
+                    });
+
+                    $('#btn_setting').click(function() {
+                        self.showSettingSection();
+                    });
+                },
+
+                showSensorSection: function() {
+                    $('#sensor-section').show();
+                    $('#setting-section').hide();
+                    $('#btn_sensor').addClass('active');
+                    $('#btn_setting').removeClass('active');
+                },
+
+                showSettingSection: function() {
+                    $('#sensor-section').hide();
+                    $('#setting-section').show();
+                    $('#btn_sensor').removeClass('active');
+                    $('#btn_setting').addClass('active');
                 },
 
                 async handleSwitchSetting() {
