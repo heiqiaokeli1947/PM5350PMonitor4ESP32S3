@@ -1,22 +1,36 @@
-# PM5350P Monitor for ESP32S3 项目设计文档
+# PM5350P Monitor for ESP32-S3 项目设计文档
 
 ## 1. 项目概述
 
 ### 1.1 项目背景
-本项目是一个基于 ESP32-S3 的功率监测系统，通过 Modbus RTU 协议读取施耐德 PM5350P 电力监测仪表的数据，并提供 Web 界面进行配置和数据查看。
+本项目是一个基于 ESP32-S3 微控制器的电力参数与环境监测系统，通过 Modbus RTU 协议读取施耐德 PM5350P 电力监测仪表数据，同时集成温湿度等环境传感器，提供 Web 界面进行远程配置和实时数据可视化。
 
 ### 1.2 功能特性
-- 实时读取三相电力参数（电流、电压、功率、功率因数、电能等）
-- 支持 WiFi 连接和 AP 配置模式
-- 提供 Web 服务器进行设备配置和状态查询
-- 看门狗定时器保障系统稳定性
-- 持久化存储系统配置
+- **电力监测**：实时读取三相电压、电流、功率、功率因数、频率、累计电能
+- **环境监测**：温度（HDC1080）、相对湿度、湿球温度（算法计算）
+- **扩展传感器接口**：气压、照度、PM2.5（硬件支持，软件预留）
+- **Web 配置界面**：设备参数配置、WiFi 配置、阈值设置
+- **实时图表**：温度、湿度、功率、高/低温度阈值的历史趋势曲线
+- **风扇控制**：4 路 PWM 输出，支持频率和占空比调节
+- **系统稳定性**：看门狗定时器（60s）、配置持久化存储、WiFi 断线重连
+- **双运行模式**：正常运行模式 / AP 配置模式
 
 ### 1.3 硬件平台
-- **主控芯片**: ESP32-S3 (带 SPIRAM)
-- **传感器**: HDC1080 温湿度传感器
-- **功率监测**: 施耐德 PM5350P (Modbus RTU)
-- **风扇控制**: 4 路 PWM 输出
+| 组件 | 型号 / 规格 | 接口 | 用途 |
+|-----|------------|------|------|
+| 主控 | ESP32-S3 | - | 主控制器，带 PSRAM |
+| 温湿度传感器 | HDC1080 | I2C (SCL=IO3, SDA=IO8) | 温度、湿度 |
+| 电力监测仪 | 施耐德 PM5350P | Modbus RTU (UART1) | 电力参数 |
+| 风扇驱动 | 4 路 MOS 管 | PWM (IO46/9/10/11) | 散热风扇控制 |
+| LED 指示 | WS2812 + 独立 LED | GPIO2, GPIO48 | 运行状态指示 |
+
+### 1.4 软件栈
+- **固件**：MicroPython (ESP32-S3-SPIRAM-OCT)
+- **Web 框架**：Microdot (轻量级 WSGI 框架)
+- **前端图表**：Chart.js
+- **前端 CSS**：Spectre.css
+- **协议**：HTTP (端口 80)、Modbus RTU (UART1)
+- **存储**：MicroPython btree 数据库（键值持久化）
 
 ---
 
@@ -25,43 +39,66 @@
 ### 2.1 整体架构图
 
 ```
+┌────────────────────────────────────────────────────────────┐
+│                      前端 (Browser)                         │
+│  ┌──────────────────┐  ┌──────────────────┐                │
+│  │  设备控制面板    │  │  数据可视化图表  │                │
+│  │ (Spectre CSS)    │  │   (Chart.js)      │                │
+│  └────────┬─────────┘  └─────────┬─────────┘                │
+└───────────┼────────────────────────┼─────────────────────────┘
+            │  HTTP GET (每 5 秒轮询) │
+            ▼                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    应用层 (Application)                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │   Web Server │  │  System Task │  │  Config Manager  │  │
-│  │  (Microdot)  │  │ (Main Loop)  │  │    (DBUtils)     │  │
-│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
-└─────────┼─────────────────┼───────────────────┼─────────────┘
-          │                 │                   │
-┌─────────▼─────────────────▼───────────────────▼─────────────┐
-│                    服务层 (Service)                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │   WiFi 管理  │  │   看门狗     │  │     BSP 层       │  │
-│  │  (domain/)   │  │  (WDT/Timer) │  │   (driver/)      │  │
-│  └──────┬───────┘  └──────────────┘  └────────┬─────────┘  │
-└─────────┴──────────────────────────────────────┼─────────────┘
-                                                │
-┌───────────────────────────────────────────────▼─────────────┐
-│                    硬件层 (Hardware)                        │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────┐ │
-│  │  PM5350P │ │ HDC1080  │ │   PWM    │ │    WiFi/AP     │ │
-│  │(Modbus)  │ │ (I2C)    │ │(风扇控制)│ │   网络接口     │ │
-│  └──────────┘ └──────────┘ └──────────┘ └────────────────┘ │
+│                  Web 服务层 (Microdot)                      │
+│  GET /status      GET /scanap     GET /setwifi              │
+│  GET /reset       GET /restart    GET /static/*              │
 └─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  业务逻辑层 (main.py)                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ 配置管理模块  │  │ 主循环调度器 │  │ 运行模式管理      │  │
+│  │ (DBUtils)     │  │ (1s tick)     │  │ normal/config     │  │
+│  └──────┬───────┘  └──────┬───────┘  └─────────┬────────┘  │
+└─────────┼──────────────────┼────────────────────┼───────────┘
+          │                  │                    │
+          ▼                  ▼                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  BSP 层 (driver/bsp.py)                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ 传感器读取   │  │ PWM 风扇控制  │  │ LED 状态控制     │  │
+│  │ (5s 定时器)  │  │ (4 路 PWM)    │  │ (心跳闪烁)       │  │
+│  └──────┬───────┘  └──────────────┘  └──────────────────┘  │
+└─────────┼───────────────────────────────────────────────────┘
+          │
+    ┌─────┴──────┐
+    ▼            ▼
+┌─────────┐  ┌──────────────┐
+│ HDC1080 │  │  PM5350P     │
+│ (I2C)   │  │ (Modbus RTU) │
+└─────────┘  └──────────────┘
 ```
 
-### 2.2 模块划分
+### 2.2 模块职责划分
 
-| 模块层级 | 模块名称 | 文件路径 | 职责说明 |
-|---------|---------|---------|---------|
-| 应用层 | Web Server | `lib/microdot.py`, `main.py` | HTTP 请求处理、路由分发 |
-| 应用层 | System Task | `main.py` | 主循环任务、定时数据采集 |
-| 应用层 | Config Manager | `domain/DBUtils.py` | 系统配置持久化存储 |
-| 服务层 | WiFi 管理 | `domain/wifi.py` | WiFi 连接、AP 模式管理 |
-| 服务层 | BSP 层 | `driver/bsp.py` | 硬件抽象、传感器管理 |
-| 驱动层 | PM5350P | `driver/PM5350P.py` | Modbus RTU 通信驱动 |
-| 驱动层 | HDC1080 | `driver/hdc1080.py` | 温湿度传感器驱动 |
-| 驱动层 | Modbus | `lib/modbus/` | Modbus 协议实现 |
+| 层级 | 模块 | 文件路径 | 核心职责 |
+|-----|------|---------|---------|
+| 入口 | 主程序 | `main.py` | 初始化、主循环、HTTP 路由 |
+| 应用层 | 配置数据库 | `domain/DBUtils.py` | btree 键值存储 |
+| 应用层 | 风扇状态机 | `domain/FanFSM.py` | 温度触发风扇控制 |
+| 应用层 | 空气算法 | `domain/AAC.py` | 湿球温度计算 |
+| 应用层 | WiFi 管理 | `domain/wifi.py` | WiFi STA/AP 模式 |
+| 应用层 | 数学工具 | `domain/MathTool.py` | Modbus 数据类型转换 |
+| 应用层 | 传感器数据模型 | `domain/sensorData.py` | 传感器数据封装 |
+| 应用层 | 文件工具 | `domain/fileUtils.py` | 文件存在性检查 |
+| 驱动层 | BSP | `driver/bsp.py` | 硬件抽象层、传感器定时读取 |
+| 驱动层 | PM5350P | `driver/PM5350P.py` | Modbus 寄存器读取 |
+| 驱动层 | HDC1080 | `driver/hdc1080.py` | I2C 温湿度驱动 |
+| 驱动层 | 预留 | `driver/bmp280.py`, `bh1750.py`, `pms5003.py` | 传感器驱动预留 |
+| 第三方库 | Web 框架 | `lib/microdot.py` | HTTP 服务器 |
+| 第三方库 | Modbus | `lib/modbus/` | Modbus 协议栈 |
+| 前端 | 单页应用 | `static/index.html` | 数据展示与配置界面 |
 
 ---
 
@@ -69,420 +106,477 @@
 
 ### 3.1 主程序模块 (`main.py`)
 
-#### 3.1.1 功能职责
-- 系统初始化（配置加载、硬件初始化）
-- WiFi 连接管理（正常模式/AP 配置模式）
-- Web 服务器启动
-- 主循环任务调度
-- 看门狗定时器管理
-
-#### 3.1.2 状态机设计
+#### 3.1.1 启动流程
 
 ```
-┌─────────────────┐     连接失败/首次启动     ┌─────────────────┐
-│   Normal Mode   │◄─────────────────────────│   Config Mode   │
-│   (正常模式)     │─────────────────────────►│   (配置模式)    │
-│  - 连接WiFi      │   WiFi配置成功           │  - 启动AP       │
-│  - 广播IP        │   重启后进入             │  - Web配置      │
-│  - 数据采集      │                          │  - 超时重启     │
-└─────────────────┘                          └─────────────────┘
+Boot
+  │
+  ▼
+1. 加载系统配置 (DBUtils)
+   ├─ 从 btree 读取 systemConfig (JSON 字符串)
+   └─ 不存在则使用默认配置
+  │
+  ▼
+2. 初始化 BSP (bspInstance.setConfig)
+   ├─ I2C 总线初始化
+   ├─ HDC1080 传感器初始化
+   ├─ PWM 通道初始化
+   ├─ 定时器启动 (5s 读取传感器)
+   └─ WS2812 LED 初始化
+  │
+  ▼
+3. 看门狗启动 (WDT, 60s 超时)
+   └─ Timer(0) 每 5s 喂狗
+  │
+  ▼
+4. WiFi 模式判断
+   ├─ mode == "normal" → 尝试连接 WiFi
+   │   ├─ 连接成功 → 启动 IP 广播线程
+   │   │   └─ (devicename_192.168.x.x 的 SSID 作为 AP 广播)
+   │   └─ 连接失败 → 切换到 config 模式
+   └─ mode == "config" → 启动 AP 配置模式
+       └─ SSID: PM5350P_<IP>, 密码: Changeme_123
+  │
+  ▼
+5. Web 服务器启动 (独立线程, 端口 80)
+  │
+  ▼
+6. 主循环 (while True, 1s tick)
+   ├─ 更新运行时间统计
+   ├─ LED 心跳闪烁
+   ├─ 每 300 次循环 → GC 垃圾回收
+   └─ 每 3600 次循环 → 保存运行时间到数据库
 ```
 
-#### 3.1.3 关键变量
+#### 3.1.2 运行模式状态机
+
+```
+┌─────────────────┐      WiFi 连接失败 / 首次启动      ┌─────────────────┐
+│   Normal Mode   │ ◄───────────────────────────────── │   Config Mode   │
+│  (正常运行模式) │    配置成功后自动重启进入          │ (AP 配置模式)    │
+│  - HTTP 服务     │                                     │  - 启动 AP       │
+│  - 数据采集     │                                     │  - Web 配置界面 │
+│  - 图表刷新     │                                     │  - 300s 超时重启 │
+└─────────────────┘                                     └─────────────────┘
+```
+
+#### 3.1.3 关键全局变量
 
 | 变量名 | 类型 | 说明 |
 |-------|------|------|
-| `systemConfig` | dict | 系统配置字典 |
-| `startTime` | int | 启动时间戳 |
-| `totalRunTime` | int | 累计运行时间（秒） |
-| `runCounter` | int | 主循环计数器 |
-| `whenGotoConfigMode` | int | 进入配置模式时间 |
+| `systemConfig` | dict | 完整系统配置（JSON 序列化存储到 btree） |
+| `defaulteSystemConfig` | dict | 出厂默认配置 |
+| `totalRunTime` | int | 累计运行时间（秒，持久化存储） |
+| `whenGotoConfigMode` | int | 进入配置模式的时间戳 |
+| `bspInstance` | BSP | BSP 单例 |
+| `app` | Microdot | Web 应用实例 |
 
 ### 3.2 BSP 模块 (`driver/bsp.py`)
 
-#### 3.2.1 功能职责
-- 硬件资源初始化和管理
-- 传感器数据采集
-- PWM 风扇控制
-- LED 状态控制
+#### 3.2.1 硬件抽象
 
-#### 3.2.2 类结构
-
-```python
-class BSP:
-    def __init__(self):
-        # I2C 初始化
-        self.softI2C = SoftI2C(scl=Pin(3), sda=Pin(8), freq=100000)
-        # LED 控制 (引脚2)
-        self.__LED = Pin(2, Pin.OUT, value=0)
-        # PM5350P 实例
-        self.__pm5350pInstance = None
-        # PWM 风扇控制 (引脚3, 46, 9, 10)
-        self.__fan1PwmPin = None
-        self.__fan2PwmPin = None
-        self.__fan3PwmPin = None
-        self.__fan4PwmPin = None
-        # 传感器数据对象
-        self.__sensorData = SensorData()
-        # HDC1080 传感器
-        self.__hdc1080 = HDC1080(self.softI2C)
-        # 传感器读取定时器 (5秒周期)
-        self.__sensorReadTimer = Timer(0)
-```
-
-#### 3.2.3 引脚分配
-
-| 引脚 | 功能 | 说明 |
+| 资源 | 引脚 | 配置 |
 |-----|------|------|
-| IO2 | LED 控制 | ESP32-S3 板载 LED |
-| IO3 | I2C SCL / PWM1 | 共享引脚 |
-| IO8 | I2C SDA | HDC1080 数据 |
-| IO9 | PWM3 | 风扇 MOS 控制 |
-| IO10 | PWM4 | 风扇 MOS 控制 |
-| IO17 | UART1 TX | Modbus 发送 |
-| IO18 | UART1 RX | Modbus 接收 |
-| IO46 | PWM2 | 风扇转速控制 |
+| I2C SCL | IO3 | 100kHz |
+| I2C SDA | IO8 | - |
+| 独立 LED | IO2 | GPIO 输出，心跳闪烁 |
+| WS2812 LED | IO48 | RGB 状态指示 |
+| PWM1 (MOS1) | IO46 | 风扇 MOS 管 1 |
+| PWM2 (MOS2) | IO9 | 风扇 MOS 管 2 / 转速信号 |
+| PWM3 (MOS3) | IO10 | 风扇 MOS 管 3 |
+| PWM4 (MOS4) | IO11 | 风扇 MOS 管 4 |
+| UART1 TX | IO17 | Modbus RTU 发送 |
+| UART1 RX | IO18 | Modbus RTU 接收 |
 
-### 3.3 PM5350P 驱动 (`driver/PM5350P.py`)
+#### 3.2.2 PWM 占空比计算
 
-#### 3.3.1 功能职责
-- Modbus RTU 协议通信
-- 电力参数读取（电流、电压、功率、电能等）
-- 数据解析和转换
+BSP 中的 PWM 计算逻辑是项目的核心算法之一：
 
-#### 3.3.2 寄存器映射
+```
+输入参数:
+  - percent: 目标百分比 (0~100)
+  - config.pwm1freq: PWM 频率 (Hz)
+  - config.pwm1min: 最小占空比 (%)
+  - config.pwm1max: 最大占空比 (%)
 
-| 寄存器地址 | 长度 | 数据类型 | 描述 |
-|-----------|------|---------|------|
-| 3000-3011 | 12 | float32[6] | A/B/C/N/G/Avg 相电流 |
-| 3020-3037 | 18 | float32[9] | 线电压、相电压 |
-| 3054-3061 | 8 | float32[4] | A/B/C/总功率 (kW) |
-| 3078-3085 | 8 | float32[4] | A/B/C/总功率因数 |
-| 3110-3111 | 2 | float32 | 频率 (Hz) |
-| 3200-3227 | 28 | datetime/int64 | 电能数据 |
+计算过程:
+  base = (pwm1min / 100) * pwm1freq           ── 最小占空比对应的时钟周期数
+  full = (pwm1max - pwm1min) / 100 * pwm1freq  ── 可调范围
+  duty = 1023 * (full * percent/100 + base) / pwm1freq
 
-#### 3.3.3 输出数据结构
-
-```python
-pm5350Data = {
-    'Ia': float,      # A相电流 (A)
-    'Ib': float,      # B相电流 (A)
-    'Ic': float,      # C相电流 (A)
-    'In': float,      # N相电流 (A)
-    'Ig': float,      # G相电流 (A)
-    'Iavg': float,    # 平均电流 (A)
-    'Vab': float,     # AB线电压 (V)
-    'Vbc': float,     # BC线电压 (V)
-    'Vca': float,     # CA线电压 (V)
-    'Vll': float,     # 平均线电压 (V)
-    'Van': float,     # A相电压 (V)
-    'Vbn': float,     # B相电压 (V)
-    'Vcn': float,     # C相电压 (V)
-    'Pa': float,      # A相功率 (kW)
-    'Pb': float,      # B相功率 (kW)
-    'Pc': float,      # C相功率 (kW)
-    'Ptotal': float,  # 总功率 (kW)
-    'PFa': float,     # A相功率因数
-    'PFb': float,     # B相功率因数
-    'PFc': float,     # C相功率因数
-    'PFtotal': float, # 总功率因数
-    'ErestTime': int, # 电能复位时间
-    'Eaed': int,      # 有功电能 (Wh)
-    'Freq': float     # 频率 (Hz)
-}
+应用:
+  fan1 (IO46): 直接控制 MOS，duty=0 关闭，duty=1023 全开
+  fan2 (IO9):  用于转速信号 (PWM 占空比输出)
+  fan3 (IO10): 同步控制 MOS
+  fan4 (IO11): 预留
 ```
 
-### 3.4 WiFi 管理模块 (`domain/wifi.py`)
+#### 3.2.3 传感器定时读取
 
-#### 3.4.1 功能职责
-- WiFi STA 模式连接
-- WiFi AP 模式启动/停止
-- 网络状态检测
-- AP 扫描
+Timer(1) 以 5000ms 周期触发：
 
-#### 3.4.2 关键函数
+```
+timerHandler:
+  ├─ hdc1080TimerHandler
+  │   ├─ 读取温度 (℃)
+  │   ├─ 读取相对湿度 (RH%)
+  │   └─ 调用 AAC.ts() 计算湿球温度
+  │
+  └─ pm5350pTimerHandler (当前已注释)
+      └─ 读取 PM5350P 寄存器数据
+```
 
-| 函数名 | 功能 | 参数 | 返回值 |
-|-------|------|------|--------|
-| `connectToWifi(ssid, pwd)` | 连接 WiFi | ssid: 网络名称, pwd: 密码 | bool: 是否成功 |
-| `startAP(apname, appwd)` | 启动 AP | apname: AP名称, appwd: 密码 | bool: 是否成功 |
-| `stopAP()` | 停止 AP | 无 | bool: 是否成功 |
-| `isConnected()` | 检查连接状态 | 无 | bool: 是否连接 |
-| `getStationIP()` | 获取 STA IP | 无 | str: IP地址 |
-| `scanAP()` | 扫描可用 AP | 无 | dict: {ssid: rssi} |
-| `testWifiConnect(ssid, pwd)` | 测试 WiFi 连接 | ssid, pwd | bool: 是否成功 |
+### 3.3 湿球温度算法 (`domain/AAC.py`)
+
+#### 3.3.1 算法原理
+
+湿球温度通过迭代法求解：给定干球温度 T 和相对湿度 RH，找到湿球温度 Tw，使得：
+
+```
+RH = P_atm * [h_g(Tw) - h_a(T) + d(Tw,100%) * v(Tw)]
+     / [e_s(Tw) * (h_g(Tw) - h_a(T) + d(Tw,100%) * v(Tw) + 0.622 * v(T))]
+
+其中:
+  e_s(T) = 611.2 * exp(17.67 * T / (243.5 + T))   饱和水汽压 (Pa)
+  h_a(T) = 1.01 * T                                干空气焓 (kJ/kg)
+  v(T) = 2501 + 1.85 * T                           水汽焓 (kJ/kg)
+  d(T, RH) = 0.622 * RH * e_s(T) / (P - RH*e_s(T)) 含湿量 (kg/kg)
+  P = 101325 Pa (标准大气压)
+```
+
+#### 3.3.2 迭代求解过程
+
+```
+ts(T_dry, RH, diff=0.1):
+  1. 初始猜测: Tw = T_dry - 5
+  2. 循环:
+     ├─ 计算 RH_calc = rh(T_dry, Tw)
+     ├─ 若 |RH_calc - RH| < diff, 退出
+     ├─ 若 RH_calc > RH, Tw -= 0.01
+     ├─ 否则 Tw += 0.01
+     └─ 超过 10000 次则失败返回 -9999
+  3. 返回 round(Tw, 2)
+```
+
+### 3.4 PM5350P Modbus 驱动 (`driver/PM5350P.py`)
+
+#### 3.4.1 寄存器映射
+
+| 寄存器起始 | 长度 | 数据类型 | 含义 | JSON 字段 |
+|-----------|------|---------|------|----------|
+| 3000 | 2 (float32) | A 相电流 | `Ia` | A |
+| 3002 | 2 | float32 | B 相电流 | `Ib` | A |
+| 3004 | 2 | float32 | C 相电流 | `Ic` | A |
+| 3006 | 2 | float32 | N 相电流 | `In` | A |
+| 3008 | 2 | float32 | G 相电流 | `Ig` | A |
+| 3010 | 2 | float32 | 平均电流 | `Iavg` | A |
+| 3020 | 2 | float32 | AB 线电压 | `Vab` | V |
+| 3022 | 2 | float32 | BC 线电压 | `Vbc` | V |
+| 3024 | 2 | float32 | CA 线电压 | `Vca` | V |
+| 3028 | 2 | float32 | A 相电压 | `Van` | V |
+| 3054 | 2 | float32 | 总功率 | `Ptotal` | kW |
+| 3078 | 2 | float32 | 总功率因数 | `PFtotal` | - |
+| 3110 | 2 | float32 | 频率 | `Freq` | Hz |
+| 3200 | 4 (int64) | 电能复位时间 | `ErestTime` | - |
+| 3204 | 4 | int64 | 总有功电能 | `Eaed` | Wh |
+
+#### 3.4.2 字节序处理
+
+Modbus 寄存器为大端 (Big-Endian)，使用 `struct.unpack('>f')` 解析 float32，`struct.unpack('>q')` 解析 int64。在 `domain/MathTool.py` 中封装实现。
 
 ### 3.5 数据库模块 (`domain/DBUtils.py`)
 
-#### 3.5.1 功能职责
-- 基于 btree 的键值存储
-- 系统配置持久化
-- 运行时间统计存储
+使用 MicroPython 内置的 `btree` 模块实现键值存储，底层是文件系统上的单个文件。
 
-#### 3.5.2 关键函数
-
-| 函数名 | 功能 | 参数 | 返回值 |
-|-------|------|------|--------|
-| `save(kv)` | 保存键值对 | kv: dict | 无 |
-| `get(k)` | 获取值 | k: str | value |
-| `delete(keys)` | 删除键 | keys: list | 无 |
-| `multiGet(keys)` | 批量获取 | keys: list | dict |
+| 键 | 值格式 | 说明 |
+|----|--------|------|
+| `systemConfig` | JSON 字符串 | 完整系统配置字典 |
+| `totalRunTime` | 字符串数字 | 累计运行时间（秒） |
 
 ---
 
-## 4. Web API 接口设计
+## 4. 系统配置设计
 
-### 4.1 接口总览
+### 4.1 默认配置 (`defaulteSystemConfig`)
 
-| 接口路径 | HTTP 方法 | 功能描述 |
-|---------|----------|---------|
-| `/` | GET | 返回主页 (index.html) |
-| `/static/<path>` | GET | 静态资源访问 |
-| `/status` | GET | 获取系统状态和传感器数据 |
-| `/scanap` | GET | 扫描可用 WiFi 网络 |
-| `/setwifi` | GET | 设置 WiFi 配置 |
-| `/reset` | GET | 恢复出厂设置 |
-| `/restart` | GET | 重启设备 |
+```json
+{
+    "deviceusername": "admin",
+    "devicepwd": "pengping",
+    "devicetype": "NodeMCU",
+    "devicename": "PM5350P",
+    "mode": "normal",
 
-### 4.2 接口详细设计
+    "APName": "PM5350P",
+    "APPwd": "Changeme_123",
 
-#### 4.2.1 `/status` - 获取系统状态
+    "wifiname": "cissco_2g",
+    "wifipwd": "13438045703",
+    "wifinameDefault": "IOT_2G",
+    "wifipwdDefault": "13438045703",
 
-**请求参数:**
+    "serverurl": "192.168.1.124",
+    "serverurlDefault": "http://3a892544f7.qicp.vip",
 
-| 参数名 | 类型 | 必填 | 说明 |
-|-------|------|-----|------|
-| `devicepwd` | string | 是 | 设备密码 |
-| `mode` | string | 是 | `get` 获取状态 |
+    "latitude": 30.67831,
+    "longitude": 104.0375,
+    "altitude": 498,
 
-**成功响应 (errCode=0):**
+    "sw1name": "S1",
+    "sw2name": "S2",
+    "num1name": "Tree temprature",
+    "num2name": "Tree humidity",
+    "rangename": "Tree light",
+
+    "pwm1freq": 25000,
+    "pwm1default": 0,
+    "pwm1min": 15,
+    "pwm1max": 100,
+    "pwm2freq": 25000,
+    "pwm2default": 0,
+    "pwm2min": 15,
+    "pwm2max": 100,
+    "pwm3freq": 25000,
+    "pwm3default": 0,
+    "pwm3min": 15,
+    "pwm3max": 100,
+    "pwm4freq": 25000,
+    "pwm4default": 0,
+    "pwm4min": 15,
+    "pwm4max": 100,
+
+    "fanHThreshold": 36,
+    "fanLThreshold": 31.5,
+
+    "modbusSlaveAddr": 6,
+    "modbusBadud": 38400
+}
+```
+
+### 4.2 配置字段说明
+
+| 字段 | 类型 | 可在线修改 | 说明 |
+|-----|------|-----------|------|
+| `fanHThreshold` | float | 是 | 风扇全速阈值温度 (℃) |
+| `fanLThreshold` | float | 是 | 风扇启动阈值温度 (℃) |
+| `pwm1freq` | int | 是 | PWM 通道 1 频率 (Hz) |
+| `pwm1min` | int | 是 | PWM 最小占空比 (%) |
+| `pwm1max` | int | 是 | PWM 最大占空比 (%) |
+| `sw1` / `sw2` | bool | 是 | 开关 1/2 状态 |
+| `wifiname` / `wifipwd` | string | 否 (需重启) | WiFi 凭据 |
+| `mode` | string | 否 (需重启) | `normal` / `config` |
+
+---
+
+## 5. Web API 接口设计
+
+### 5.1 接口总览
+
+| 路径 | 方法 | 鉴权 | 说明 |
+|-----|------|------|------|
+| `/` | GET | 否 | 返回主页 HTML |
+| `/static/*` | GET | 否 | 静态资源 (CSS/JS/图标) |
+| `/status` | GET | 是 (`devicepwd`) | 获取状态 / 修改参数 |
+| `/scanap` | GET | 否 | 扫描附近 WiFi |
+| `/setwifi` | GET | 否 | 配置 WiFi 并重启 |
+| `/reset` | GET | 是 | 恢复出厂配置 |
+| `/restart` | GET | 是 | 重启设备 |
+
+### 5.2 `/status` 接口
+
+**请求查询状态 (`mode=get`)**
+
+```
+GET /status?mode=get&devicepwd=pengping
+```
+
+**响应 (errCode=0)**
 
 ```json
 {
     "errCode": "0",
     "mode": "normal",
-    "sw1name": "S1",
-    "sw2name": "S2",
+    "sw1": true,
+    "sw2": false,
+
     "devicename": "PM5350P",
-    "serverurl": "192.168.1.124",
-    "temp": 25.5,
-    "humi": 60.0,
-    "wetBulbTemp": 18.2,
-    "presure": 101325,
-    "luminance": 450,
-    "pm25": 12,
-    "runTime": 3600,
-    "totalRunTime": 86400,
+    "devicepwd": "pengping",
+    "deviceusername": "admin",
+
+    "fanHThreshold": 36,
+    "fanLThreshold": 31.5,
+    "pwm1freq": 25000,
+    "pwm1min": 15,
+    "pwm1max": 100,
+
+    "temp": 28.45,
+    "humi": 51.13,
+    "wetBulbTemp": 20.87,
+    "presure": -9999,
+    "luminance": -9999,
+    "pm25": -9999,
+
     "Ia": 10.5,
     "Ib": 11.2,
     "Ic": 10.8,
+    "In": 0.2,
+    "Iavg": 10.83,
+    "Vab": 220.5,
+    "Vbc": 221.0,
+    "Vca": 219.8,
     "Ptotal": 5.5,
-    "Freq": 50.0
+    "PFtotal": 0.95,
+    "Freq": 50.02,
+    "Eaed": 1234567,
+
+    "runTime": 52903,
+    "totalRunTime": 179257,
+    "ver": "1.1"
 }
 ```
 
-#### 4.2.2 `/scanap` - 扫描 WiFi
+> **无效值约定**：传感器未连接时返回 `-9999`，前端据此判断是否显示有效数据。
 
-**请求参数:** 无
+**请求修改参数 (`mode=set`)**
 
-**成功响应:**
+```
+GET /status?mode=set&devicepwd=pengping
+    &fanHThreshold=38
+    &fanLThreshold=32
+    &pwm1freq=25000
+    &pwm1min=15
+    &pwm1max=100
+    &sw1=true
+    &sw2=false
+```
+
+**成功响应**：`{"errCode": "0", "msg": "set finish."}`
+
+**失败响应**：`{"errCode": "-1", "msg": "invalid device password."}`
+
+### 5.3 `/scanap` 接口
+
+```
+GET /scanap
+```
+
+返回附近 WiFi SSID 列表及 RSSI：
 
 ```json
 {
     "cissco_2g": -58,
-    "IOT_2G": -65,
-    "TP-LINK_ABC": -72
+    "IOT_2G": -72,
+    "TP-LINK-Office": -65
 }
 ```
 
-#### 4.2.3 `/setwifi` - 设置 WiFi
+### 5.4 `/setwifi` 接口
 
-**请求参数:**
-
-| 参数名 | 类型 | 必填 | 说明 |
-|-------|------|-----|------|
-| `ssid` | string | 是 | WiFi 名称 |
-| `pwd` | string | 是 | WiFi 密码 |
-| `serverurl` | string | 是 | 服务器地址 |
-| `devicepwd` | string | 是 | 设备密码 |
-| `devicename` | string | 是 | 设备名称 |
-| `sw1name` | string | 是 | 开关1名称 |
-| `sw2name` | string | 是 | 开关2名称 |
-
-**成功响应:**
-
-```json
-{
-    "errCode": "0",
-    "msg": "connect wifi success and node will reboot after 5s.",
-    "APName": "cissco_2g",
-    "url": "192.168.1.100"
-}
+```
+GET /setwifi?ssid=MyWiFi&pwd=secret
+    &serverurl=192.168.1.1&devicepwd=pengping
+    &devicename=PM5350P&sw1name=Fan&sw2name=Pump
 ```
 
-#### 4.2.4 `/reset` - 恢复出厂设置
+- 成功 → 保存配置 → 等待 5 秒 → 自动重启
+- 重启后尝试以 `normal` 模式连接新 WiFi
 
-**请求参数:**
+### 5.5 `/reset` 与 `/restart` 接口
 
-| 参数名 | 类型 | 必填 | 说明 |
-|-------|------|-----|------|
-| `devicepwd` | string | 是 | 设备密码 |
-
-**成功响应:**
-
-```json
-{
-    "errCode": "0",
-    "msg": "success"
-}
 ```
-
-#### 4.2.5 `/restart` - 重启设备
-
-**请求参数:**
-
-| 参数名 | 类型 | 必填 | 说明 |
-|-------|------|-----|------|
-| `devicepwd` | string | 是 | 设备密码 |
-
-**成功响应:**
-
-```json
-{
-    "errCode": "0",
-    "msg": "success"
-}
+GET /reset?devicepwd=pengping      → 恢复出厂配置 + 重启
+GET /restart?devicepwd=pengping    → 仅重启
 ```
 
 ---
 
-## 5. 系统配置设计
+## 6. 前端架构设计 (`static/index.html`)
 
-### 5.1 默认配置
+### 6.1 架构模式
 
-```python
-defaulteSystemConfig = {
-    "deviceusername": "admin",           # 设备用户名
-    "devicepwd": "pengping",             # 设备密码
-    "devicetype": "NodeMCU",             # 设备类型
-    "devicename": "PM5350P",             # 设备名称
-    "APName": "PM5350P",                 # AP 名称
-    "APPwd": "Changeme_123",             # AP 密码
-    "wifiname": "cissco_2g",             # WiFi 名称
-    "wifipwd": "13438045703",            # WiFi 密码
-    "serverurl": "192.168.1.124",        # 服务器地址
-    "mode": "normal",                    # 运行模式
-    "sw1name": "S1",                     # 开关1名称
-    "sw2name": "S2",                     # 开关2名称
-    "num1name": "Tree temprature",       # 数值1名称
-    "num2name": "Tree humidity",         # 数值2名称
-    "rangename": "Tree light",           # 范围名称
-    "latitude": 30.67831,                # 纬度
-    "longitude": 104.0375,               # 经度
-    "altitude": 498,                     # 海拔
-    "pwm1freq": 25000,                   # PWM1 频率
-    "pwm1default": 0,                    # PWM1 默认值
-    "pwm1min": 15,                       # PWM1 最小值
-    "pwm1max": 100,                      # PWM1 最大值
-    "pwm2freq": 25000,                   # PWM2 频率
-    "pwm2default": 0,                    # PWM2 默认值
-    "pwm2min": 15,                       # PWM2 最小值
-    "pwm2max": 100,                      # PWM2 最大值
-    "pwm3freq": 25000,                   # PWM3 频率
-    "pwm3default": 0,                    # PWM3 默认值
-    "pwm3min": 15,                       # PWM3 最小值
-    "pwm3max": 100,                      # PWM3 最大值
-    "pwm4freq": 25000,                   # PWM4 频率
-    "pwm4default": 0,                    # PWM4 默认值
-    "pwm4min": 15,                       # PWM4 最小值
-    "pwm4max": 100,                      # PWM4 最大值
-    "fanHThreshold": 36,                 # 风扇启动温度
-    "fanLThreshold": 31.5,               # 风扇停止温度
-    "modbusSlaveAddr": 6,                # Modbus 从站地址
-    "modbusBadud": 38400                 # Modbus 波特率
-}
+前端采用**工厂模式 + 模块化**组织，避免使用 ES6 class（保证兼容性）。
+
+```
+App 初始化 (document.ready)
+  │
+  ├─ createDeviceData()           ── 设备数据模型（JSON 解析）
+  ├─ createDataBuffer(350)        ── 数据环形缓冲区（350 点 ≈ 29 分钟）
+  │
+  ├─ createChartManager('monitorChart').init()  ── Chart.js 图表
+  │
+  ├─ Views:
+  │   ├─ createSensorView()       ── 传感器数值显示
+  │   ├─ createControlView()      ── 开关状态
+  │   ├─ createSettingsView()     ── 阈值/PWM 设置
+  │   └─ createDeviceInfoView()   ── 设备名称/服务器信息
+  │
+  ├─ createRefreshController(...) ── 5 秒轮询调度
+  └─ createEventController(...)   ── 按钮点击事件
+
+刷新循环:
+  ┌─────────────────────────────────────────────┐
+  │  setInterval(5000ms):                        │
+  │    └─ refresh()                              │
+  │       ├─ GET /status?mode=get                │
+  │       ├─ deviceModel.update(resJson)         │
+  │       ├─ 各 view.update(deviceModel)         │
+  │       ├─ dataBuffer.add(resJson)             │
+  │       ├─ plotData = dataBuffer.getPlotData() │
+  │       └─ chart.updatePlotData(plotData)      │
+  └─────────────────────────────────────────────┘
+```
+
+### 6.2 数据缓冲机制 (`createDataBuffer`)
+
+- 固定大小环形缓冲区（350 条 = 5s × 350 ≈ 29.2 分钟）
+- 满后丢弃最旧数据（`buffer.shift()`），追加最新数据
+- 每次 `getPlotData()` 从最后一条数据读取阈值（因为阈值是配置常量，不随时间变化）
+- 传感器值 `-9999` 映射为 `undefined`（Chart.js 自动跳过断点）
+
+### 6.3 图表数据集
+
+| 数据集 | 标签 | 颜色 | 数据源 | 初始可见 |
+|-------|------|------|--------|---------|
+| 0 | 温度 | rgb(75, 132, 192) | 缓冲 temp[] | 是 |
+| 1 | 湿度 | rgb(175, 92, 192) | 缓冲 humi[] | 否 (hidden) |
+| 2 | 功率 | rgb(175, 92, 92) | Ptotal (最新值) | 是 |
+| 3 | 高阈值 | rgb(255, 0, 0) | fanHThreshold (配置值) | 是 |
+| 4 | 低阈值 | rgb(0, 255, 0) | fanLThreshold (配置值) | 是 |
+
+### 6.4 刷新调度逻辑
+
+```
+shouldRefresh() = !isEditing && !hasPendingRequest && !isUserEditing()
+
+isUserEditing(): 检测当前焦点是否在 input/textarea 中，避免用户输入被刷新覆盖
 ```
 
 ---
 
-## 6. 主循环流程
-
-### 6.1 初始化阶段
-
-```
-1. 加载系统配置 (DBUtils.get)
-   └─ 配置不存在 → 创建默认配置
-
-2. 初始化 BSP (bspInstance.setConfig)
-   ├─ 初始化 I2C 总线
-   ├─ 初始化 HDC1080 传感器
-   ├─ 初始化 PWM 风扇控制
-   └─ 初始化 PM5350P (Modbus)
-
-3. 初始化看门狗定时器 (WDT, 60秒)
-   └─ 创建喂狗定时器 (Timer 1, 5秒周期)
-
-4. WiFi 连接处理
-   ├─ 模式=normal → 尝试连接 WiFi
-   │   ├─ 连接成功 → 启动 IP 广播线程
-   │   └─ 连接失败 → 进入配置模式
-   └─ 模式=config → 启动 AP, 创建超时定时器
-```
-
-### 6.2 主循环
-
-```
-while True:
-    1. 更新运行时间统计
-    2. 每90次循环 → 执行 GC 垃圾回收
-    3. 每3600次循环 → 保存运行时间到数据库
-    4. 延时 1000ms
-    5. 计数器 +1
-```
-
-### 6.3 传感器读取定时器 (5秒周期)
-
-```
-timerHandler(timer):
-    1. 读取 HDC1080 温湿度
-    2. 计算湿球温度
-    3. 读取 PM5350P 电力参数
-```
-
----
-
-## 7. 异常处理与稳定性
+## 7. 稳定性与异常处理
 
 ### 7.1 看门狗机制
 
-- **超时时间**: 60 秒
-- **喂狗周期**: 5 秒 (Timer 1)
-- **触发条件**: 系统卡死超过 60 秒自动复位
-
-### 7.2 WiFi 连接超时
-
-- **超时时间**: 35 秒
-- **重试机制**: 每秒重试一次
-- **失败处理**: 自动切换到 AP 配置模式
-
-### 7.3 配置模式超时
-
-- **超时时间**: 300 秒 (5分钟)
-- **处理方式**: 超时后自动重启设备
-
-### 7.4 Modbus 通信异常
-
-```python
-try:
-    # Modbus 读取操作
-    temp = self.modubsrtu.read_holding_registers(...)
-except OSError:
-    print("no data received.")
-    return {}
-except ValueError as e:
-    print("ValueError exception:{}".format(e))
-    return {}
 ```
+machine.WDT(timeout=60000)        ── 60 秒不喂狗触发硬重启
+Timer(0).init(period=5000)         ── 每 5 秒喂狗一次
+```
+
+### 7.2 配置模式超时
+
+- 进入 AP 配置模式后，创建 Timer(3) 每 10 秒检查
+- 超过 300 秒（5 分钟）仍在配置模式 → 自动重启
+- 任何 HTTP 请求都会重置 `whenGotoConfigMode`，保证配置时不超时
+
+### 7.3 Modbus 通信异常
+
+Modbus 读取失败时返回空对象 `{}`，上层忽略本次数据，不阻塞系统运行。
+
+### 7.4 传感器无效值
+
+- 传感器读取失败 / 未连接时返回 `-9999`
+- 前端检测到 `-9999` → 显示默认值 `----`
+- 图表中映射为 `undefined` → 该点不绘制
 
 ---
 
@@ -490,106 +584,93 @@ except ValueError as e:
 
 ```
 PM5350PMonitor4ESP32S3/
-├── Doc/                    # 文档资料
-│   ├── BH1750.pdf          # BH1750 传感器文档
-│   ├── BMP280.pdf          # BMP280 传感器文档
-│   ├── ESP32开发板引脚.webp # ESP32 引脚图
-│   ├── GXTH35.pdf          # GXTH35 传感器文档
-│   ├── HDC1080.pdf         # HDC1080 传感器文档
-│   ├── PMS5003I颗粒物传感器中文说明书.pdf
-│   ├── 开发笔记.txt         # 开发笔记
-│   └── 新建 DOC 文档.doc
-├── domain/                 # 业务逻辑层
-│   ├── AAC.py              # AAC 算法（湿球温度计算）
-│   ├── DBUtils.py          # 数据库工具
-│   ├── FanFSM.py           # 风扇状态机
-│   ├── MathTool.py         # 数学工具（浮点转换）
-│   ├── cfgManager.py       # 配置管理器
-│   ├── fileUtils.py        # 文件工具
-│   ├── getFsInfo.py        # 文件系统信息
-│   ├── sensorData.py       # 传感器数据类
-│   └── wifi.py             # WiFi 管理
-├── driver/                 # 驱动层
-│   ├── PM5350P.py          # PM5350P Modbus 驱动
-│   ├── SHT20.py            # SHT20 传感器驱动
-│   ├── bh1750.py           # BH1750 传感器驱动
-│   ├── bmp280.py           # BMP280 传感器驱动
-│   ├── bsp.py              # 板级支持包
-│   ├── co2Sensor.py        # CO2 传感器驱动
-│   ├── csmc.py             # CSMC 传感器驱动
-│   ├── enumEV.py           # 事件枚举
-│   ├── enumSysStatus.py    # 系统状态枚举
-│   ├── hdc1080.py          # HDC1080 传感器驱动
-│   ├── htu21d.py           # HTU21D 传感器驱动
-│   ├── htu21d2.py          # HTU21D2 传感器驱动
-│   └── pms5003.py          # PMS5003 传感器驱动
-├── firmware/               # 固件文件
-│   └── ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin
-├── lib/                    # 第三方库
-│   ├── modbus/             # Modbus 协议库
-│   │   ├── uModBusConst.py
-│   │   ├── uModBusFunctions.py
-│   │   ├── uModBusSerial.py
-│   │   └── uModBusTCP.py
-│   └── microdot.py         # Microdot Web 框架
-├── resource/               # 资源文件
-│   └── system.config       # 系统配置模板
-├── source/                 # 源代码（开发日志）
-│   └── 开发日志.txt
-├── static/                 # Web 静态资源
-│   ├── chart.umd.js        # 图表库
-│   ├── favicon.ico         # 网站图标
-│   ├── index - 本地调试.html
-│   ├── index.html          # 主页
-│   ├── jquery.min.js       # jQuery
-│   ├── spectre.min.css     # CSS 框架
-│   └── sweetalert.min.js   # 弹窗库
-├── testfile/               # 测试文件
-│   ├── Mbslave_PM5350P.mbs # Modbus 从站配置
-│   ├── test.json           # 测试数据
-│   ├── testAP.py           # AP 测试
-│   ├── testFile.py         # 文件测试
-│   └── testrequest.py      # 请求测试
-├── .gitignore              # Git 忽略配置
-├── LICENSE                 # 许可证
-├── README.md               # 项目说明
-├── boot.py                 # 启动脚本
-└── main.py                 # 主程序
+├── main.py                    # 主程序（启动、主循环、Web 路由）
+├── boot.py                    # 启动脚本（目前为空）
+│
+├── domain/                    # 业务逻辑层
+│   ├── DBUtils.py             # btree 数据库封装
+│   ├── AAC.py                 # 湿球温度算法
+│   ├── FanFSM.py              # 风扇状态机（当前 main.py 未引用）
+│   ├── wifi.py                # WiFi STA/AP 管理
+│   ├── sensorData.py          # 传感器数据模型
+│   ├── MathTool.py            # Modbus 数据类型转换
+│   ├── fileUtils.py           # 文件工具
+│   └── getFsInfo.py           # 文件系统信息工具
+│
+├── driver/                    # 驱动层
+│   ├── bsp.py                 # 板级支持包（PWM/LED/定时器）
+│   ├── PM5350P.py             # 施耐德电力仪表驱动
+│   ├── hdc1080.py             # HDC1080 温湿度驱动
+│   ├── bmp280.py              # 气压计驱动（预留）
+│   ├── bh1750.py              # 照度计驱动（预留）
+│   ├── pms5003.py             # PM2.5 传感器驱动（预留）
+│   ├── SHT20.py               # SHT20 驱动（预留）
+│   ├── co2Sensor.py           # CO2 驱动（预留）
+│   ├── enumSysStatus.py       # 系统状态枚举（预留）
+│   └── enumEV.py              # 事件枚举（预留）
+│
+├── lib/                       # 第三方库
+│   ├── microdot.py            # Microdot Web 框架
+│   └── modbus/                # Modbus 协议栈
+│       ├── uModBusConst.py
+│       ├── uModBusFunctions.py
+│       ├── uModBusSerial.py
+│       └── uModBusTCP.py
+│
+├── static/                    # Web 前端资源
+│   ├── index.html             # 单页应用（HTML + CSS + JS 一体）
+│   ├── chart.umd.js           # Chart.js (V4)
+│   ├── spectre.min.css        # Spectre CSS 框架
+│   ├── jquery.min.js          # jQuery (用于 DOM/HTTP 请求)
+│   └── favicon.ico            # 网站图标
+│
+├── Doc/                       # 硬件资料
+├── firmware/                  # MicroPython 固件
+├── testfile/                  # 测试脚本与测试数据
+└── DESIGN_DOC.md              # 本文档
 ```
 
 ---
 
-## 9. 部署说明
+## 9. 已知实现细节与注意事项
 
-### 9.1 固件烧录
+### 9.1 `FanFSM.py` 未被主程序引用
 
-1. 使用 ESP-IDF 或 esptool.py 烧录固件
-2. 固件文件: `firmware/ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin`
-3. 烧录地址: 0x00000
+项目中实现了完整的风扇状态机（温度触发的自动转速控制），但 `main.py` 并未实例化和调用它。当前风扇由前端手动通过 PWM 参数设置控制。如需启用自动温控风扇，需在 `main.py` 中添加：
 
-### 9.2 文件上传
+```python
+import domain.FanFSM as FanFSM
+fanFSM = FanFSM.FSM(bspInstance, systemConfig)
+# 然后在主循环中调用 fanFSM.run()
+```
 
-使用 ampy 或 webrepl 上传以下文件：
-- `boot.py`
-- `main.py`
-- `lib/` 目录
-- `driver/` 目录
-- `domain/` 目录
-- `static/` 目录
+### 9.2 PM5350P 读取定时器被注释
 
-### 9.3 首次启动
+`driver/bsp.py:timerHandler` 中 `self.pm5350pTimerHandler(timer)` 被注释掉了，意味着电力数据仅在前端请求时由 `/status` 接口中的 `bspInstance.readPm5350p()` 实时读取，不会自动更新到 BSP 内部缓存。
 
-1. 设备启动后自动进入 AP 配置模式
-2. 连接 SSID: `PM5350P`, 密码: `Changeme_123`
-3. 访问 `http://192.168.4.1` 配置 WiFi
-4. 配置成功后设备自动重启并连接 WiFi
+### 9.3 线程安全性
+
+- Web 服务器运行在独立线程中（`_thread.start_new_thread`）
+- 数据库操作在 Web 线程和主线程中都可能发生，存在并发风险
+- 实际运行中由于 MicroPython GIL 和操作频率低，通常可正常工作
+
+### 9.4 IP 广播机制
+
+正常模式下，系统会同时启动一个隐藏的 AP，SSID 为 `设备名_IP地址`（如 `PM5350P_192.168.1.100`），方便用户发现设备的 IP。
+
+### 9.5 HTTP 鉴权
+
+- `/status`、`/reset`、`/restart` 需要 `devicepwd` 参数
+- 默认密码 `pengping`
+- 密码错误返回 `errCode: "-1"`
 
 ---
 
-## 10. 版本历史
+## 10. 版本信息
 
-| 版本 | 日期 | 说明 |
-|-----|------|------|
-| v1.0 | 初始版本 | 基础功能实现 |
-| v1.1 | - | 添加 PM5350P 支持 |
-| v1.2 | - | 优化 WiFi 连接逻辑 |
+| 项目 | 版本 |
+|-----|------|
+| 设备固件版本 | 1.1 (systemConfig.ver) |
+| MicroPython | ESP32-S3-SPIRAM-OCT |
+| Modbus 地址 | 6 (可配置) |
+| Modbus 波特率 | 38400 (可配置) |
