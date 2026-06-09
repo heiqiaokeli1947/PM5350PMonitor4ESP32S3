@@ -419,9 +419,9 @@
                         pm25: [],
                         luminance: [],
                         presure: [],
-                        Ptotal: 0,
-                        fanHThreshold: 0,
-                        fanLThreshold: 0
+                        Ptotal: undefined,
+                        fanHThreshold: undefined,
+                        fanLThreshold: undefined
                     };
 
                     plotData.x = Array.from({ length: this.buffer.length }, (_, i) => i).reverse();
@@ -439,8 +439,12 @@
                     if (this.buffer.length > 0) {
                         const last = this.buffer[this.buffer.length - 1];
                         plotData.Ptotal = last.Ptotal;
-                        plotData.fanHThreshold = last.fanHThreshold;
-                        plotData.fanLThreshold = last.fanLThreshold;
+                        if (last.fanHThreshold !== undefined && last.fanHThreshold !== null) {
+                            plotData.fanHThreshold = last.fanHThreshold;
+                        }
+                        if (last.fanLThreshold !== undefined && last.fanLThreshold !== null) {
+                            plotData.fanLThreshold = last.fanLThreshold;
+                        }
                     }
 
                     return plotData;
@@ -704,9 +708,9 @@
                                 }
                             }.bind(this));
 
+                            this.dataBuffer.add(resJson);
                             const plotData = this.dataBuffer.getPlotData();
                             this.chart.updatePlotData(plotData);
-                            this.dataBuffer.add(resJson);
                             this.handleModeSwitch(resJson.mode);
                         } else {
                             console.error('Refresh error:', resJson.msg);
