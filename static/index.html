@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PM5350 监控</title>
+    <link rel="stylesheet" href="/static/spectre.min.css">
     <style>
         body {
             margin: 0;
@@ -29,8 +30,67 @@
         .hidden {
             display: none;
         }
+        
+        /* Tabs styles - override spectre.css */
+        .tabs {
+            margin-bottom: 1rem;
+        }
+        
+        .tabs .tab-nav {
+            position: relative;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .tabs .tab-radio {
+            position: absolute;
+            opacity: 0;
+            z-index: -1;
+        }
+        
+        .tabs .tab-link {
+            position: relative;
+            padding: .5rem 1rem;
+            font-size: .875rem;
+            font-weight: 500;
+            line-height: 1.5;
+            color: #666;
+            background-color: transparent;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color .15s ease-in-out, border-color .15s ease-in-out;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .tabs .tab-link:hover {
+            color: #007bff;
+        }
+        
+        .tabs .tab-radio:checked + .tab-link {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        
+        .tabs .tab-panels {
+            position: relative;
+            padding-top: 1rem;
+        }
+        
+        .tabs .tab-panel {
+            display: none;
+        }
+        
+        /* 默认显示第一个标签页 */
+        .tabs .tab-panels #tab-sensor-section {
+            display: block;
+        }
     </style>
-    <link rel="stylesheet" href="/static/spectre.min.css">
     <script src="/static/chart.umd.js"></script>
     <script src="/static/sweetalert.min.js"></script>
     <script src="/static/jquery.min.js"></script>
@@ -49,23 +109,32 @@
     <!-- 设备控制区域 -->
     <section class="section">
         <section id="device-control" class="container grid-480">
-            <header class="text-center">
-                <h4>Device control</h4>
-            </header>
-
             <!-- 设备名称 -->
             <div class="form-group">
-                <label>Device name:<span id="device_name_show">----</span></label>
+                <label>设备名称:<span id="device_name_show">----</span></label>
+            </div>
+            
+            <!-- WiFi名称 -->
+            <div class="form-group">
+                <label>WiFi名称:<span id="wifi_name_show">----</span></label>
             </div>
 
-            <!-- 区域切换按钮 -->
-            <div class="form-group" style="overflow: hidden; margin-bottom: 15px;">
-                <button type="button" id="btn_sensor" class="btn btn-primary float-left active">传感器数据</button>
-                <button type="button" id="btn_setting" class="btn btn-primary float-right">参数设置</button>
-            </div>
-
-            <!-- 传感器数据区域 -->
-            <div id="sensor-section">
+            <!-- 标签页容器 -->
+            <div class="tabs">
+                <!-- 标签导航栏 -->
+                <div class="tab-nav">
+                    <input id="tab-sensor" type="radio" name="tabs" class="tab-radio" checked>
+                    <label class="tab-link" for="tab-sensor">传感器数据</label>
+                    <input id="tab-setting" type="radio" name="tabs" class="tab-radio">
+                    <label class="tab-link" for="tab-setting">参数设置</label>
+                    <input id="tab-network" type="radio" name="tabs" class="tab-radio">
+                    <label class="tab-link" for="tab-network">网络设置</label>
+                </div>
+                
+                <!-- 内容区域 -->
+                <div class="tab-panels">
+                <!-- 传感器数据面板 -->
+                <div id="tab-sensor-section" class="tab-panel">
                 <!-- 图表 -->
                 <canvas id="monitorChart" width="100%" height="100px"></canvas>
 
@@ -177,10 +246,10 @@
                 </div>
 
                 <div style="height: 20px;"></div>
-            </div>
-
-            <!-- 参数设置区域 -->
-            <div id="setting-section" style="display: none;">
+                </div> <!-- 关闭 tab-sensor-section -->
+                
+                <!-- 参数设置面板 -->
+                <div id="tab-setting-section" class="tab-panel">
                 <!-- 参数设置 -->
                 <div class="form-group">
                     <label>温度高阈值 (℃):</label>
@@ -241,14 +310,13 @@
                 </div>
 
                 <div style="height: 40px;"></div>
-            </div>
-        </section>
-
-        <!-- 网络配置区域 -->
-        <section id="network-config" class="container grid-480" style="display: none;">
-            <header class="text-center">
-                <h4>Network config</h4>
-            </header>
+                </div> <!-- 关闭 tab-setting-section -->
+                
+                <!-- 网络设置面板 -->
+                <div id="tab-network-section" class="tab-panel">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; font-size: 1.1rem;">网络设置</label>
+                </div>
             <form>
                 <div class="form-group">
                     <label>Device name:</label>
@@ -284,17 +352,19 @@
                     <label class="form-label" for="set-server-info">WIFI name:</label>
                     <div class="input-group">
                         <input type="text" id="ssid" class="form-input" placeholder="Input or select WIFI SSID." />
-                        <button type="button" id="scanap" class="btn btn-primary float-right">Search.. .WIFI</button>
+                        <button type="button" id="scanap" class="btn btn-primary float-right">Scan AP</button>
                     </div>
 
                     <label class="form-label" for="input-pwd">WIFI password:</label>
                     <div class="input-group">
                         <input id="input-pwd" class="form-input" type="password" placeholder="Input WIFI password." />
-                        <button type="button" id="connect" class="btn btn-primary float-right">Connect WIFI</button>
+                        <button type="button" id="connect" class="btn btn-primary float-right">Connect</button>
                     </div>
                 </div>
             </form>
-        </section>
+                </div> <!-- 关闭 tab-network-section -->
+                </div> <!-- 关闭 tab-panels -->
+            </div> <!-- 关闭 tabs 容器 -->
 
         <!-- 底部 -->
         <section class="section bg-primary" style="margin-bottom: 0;">
@@ -353,6 +423,7 @@
             },
             SELECTORS: {
                 DEVICE_NAME: '#device_name_show',
+                WIFI_NAME: '#wifi_name_show',
                 DEVICE_NAME_INPUT: '#device_name',
                 RUNTIME: '#id_runtime',
                 TOTAL_RUNTIME: '#id_totalRuntime',
@@ -389,7 +460,7 @@
                 BTN_CONNECT: '#connect',
                 BTN_SCANAP: '#scanap',
                 DEVICE_CONTROL: '#device-control',
-                NETWORK_CONFIG: '#network-config'
+                NETWORK_CONFIG: '#tab-network-section'
             },
             UNITS: {
                 temp: '℃',
@@ -524,6 +595,7 @@
                     const invalid = this.INVALID_VALUE;
                     return {
                         deviceName: rawData.devicename || '---',
+                        wifiName: rawData.wifiname || '---',
                         mode: rawData.mode || 'unknown',
                         runTime: rawData.runTime || 0,
                         totalRunTime: rawData.totalRunTime || 0,
@@ -653,6 +725,7 @@
             const view = createBaseView('#device-control');
             view.update = function(deviceData) {
                 $(CONFIG.SELECTORS.DEVICE_NAME).text(deviceData.data.deviceName);
+                $(CONFIG.SELECTORS.WIFI_NAME).text(deviceData.data.wifiName);
                 $(CONFIG.SELECTORS.DEVICE_NAME_INPUT).val(deviceData.data.deviceName);
                 $(CONFIG.SELECTORS.SERVERURL).val(deviceData.data.network.serverurl);
                 $(CONFIG.SELECTORS.DEVICEPWD).val(deviceData.data.network.devicepwd);
@@ -772,7 +845,6 @@
                             this.dataBuffer.add(resJson);
                             const plotData = this.dataBuffer.getPlotData();
                             this.chart.updatePlotData(plotData);
-                            this.handleModeSwitch(resJson.mode);
                         } else {
                             console.error('Refresh error:', resJson.msg);
                             this.handleErrorCode(resJson.errCode);
@@ -785,33 +857,15 @@
                 },
 
                 handleModeSwitch: function(mode) {
-                    const deviceControl = $(CONFIG.SELECTORS.DEVICE_CONTROL);
-                    const networkConfig = $(CONFIG.SELECTORS.NETWORK_CONFIG);
-
-                    if (mode === 'normal') {
-                        console.log('Showing device control');
-                        deviceControl.show();
-                        networkConfig.hide();
-                        this.enableDeviceControls();
-                    } else {
-                        console.log('Showing network config');
-                        deviceControl.hide();
-                        networkConfig.show();
-                        this.disableNetworkControls();
-                    }
+                    // 已移除 mode 控制逻辑，所有控件始终可编辑
                 },
 
                 enableDeviceControls: function() {
-                    const selectors = CONFIG.SELECTORS;
-                    $(selectors.DEVICE_NAME_INPUT).prop('disabled', true);
-                    $(selectors.DEVICEPWD).prop('disabled', true);
-                    $(selectors.SERVERURL).prop('disabled', true);
-                    $(selectors.SSID).prop('disabled', true);
-                    $(selectors.INPUT_PWD).prop('disabled', true);
-                    $(selectors.BTN_SCANAP).prop('disabled', true);
-                    $(selectors.BTN_CONNECT).prop('disabled', true);
-                    $(selectors.SWITCH_1_NAME_INPUT).prop('disabled', true);
-                    $(selectors.SWITCH_2_NAME_INPUT).prop('disabled', true);
+                    // 已移除控件禁用逻辑
+                },
+
+                enableNetworkControls: function() {
+                    // 已移除控件禁用逻辑
                 },
 
                 disableNetworkControls: function() {
@@ -878,28 +932,28 @@
                         self.handleScanAP();
                     });
 
-                    // 区域切换按钮
-                    $('#btn_sensor').click(function() {
-                        self.showSensorSection();
+                    // 标签页切换
+                    $('.tabs .tab-radio').change(function() {
+                        var tabId = $(this).attr('id').replace('tab-', '');
+                        self.switchTab(tabId);
                     });
+                },
 
-                    $('#btn_setting').click(function() {
-                        self.showSettingSection();
-                    });
+                switchTab: function(tabId) {
+                    // 隐藏所有面板
+                    $('.tabs .tab-panel').hide();
+                    // 显示对应面板
+                    $('#tab-' + tabId + '-section').show();
                 },
 
                 showSensorSection: function() {
-                    $('#sensor-section').show();
-                    $('#setting-section').hide();
-                    $('#btn_sensor').addClass('active');
-                    $('#btn_setting').removeClass('active');
+                    $('#tab-sensor').prop('checked', true);
+                    this.switchTab('sensor');
                 },
 
                 showSettingSection: function() {
-                    $('#sensor-section').hide();
-                    $('#setting-section').show();
-                    $('#btn_sensor').removeClass('active');
-                    $('#btn_setting').addClass('active');
+                    $('#tab-setting').prop('checked', true);
+                    this.switchTab('setting');
                 },
 
                 async handleSwitchSetting() {
@@ -1024,8 +1078,14 @@
 
                     try {
                         const response = await $.get(CONFIG.API.SCAN_AP);
-                        const resJson = UTILS.parseJSON(response);
-                        this.renderAPList(resJson);
+                        const apData = UTILS.parseJSON(response);
+                        
+                        // 检查接口返回格式
+                        if (apData && typeof apData === 'object') {
+                            this.renderAPList(apData);
+                        } else {
+                            UTILS.showMessage('Error', 'Invalid response format', 'error');
+                        }
                     } catch (error) {
                         UTILS.showMessage('Error', error.message, 'error');
                     } finally {
@@ -1039,14 +1099,40 @@
                     UTILS.showMessage(resJson.errCode === '0' ? 'Success' : 'Error', message, type);
                 },
 
-                renderAPList: function(apList) {
+                renderAPList: function(apData) {
                     const $aplist = $('#aplist');
                     $aplist.empty();
 
-                    if (Array.isArray(apList)) {
+                    // 处理对象格式：{"ssid1": rssi1, "ssid2": rssi2, ...}
+                    if (typeof apData === 'object' && !Array.isArray(apData)) {
+                        const ssids = Object.keys(apData);
+                        if (ssids.length === 0) {
+                            UTILS.showMessage('Info', 'No WiFi networks found', 'info');
+                            return;
+                        }
+
                         const template = $('#item-ap').html();
-                        apList.forEach(function(ap) {
-                            const html = UTILS.formatString(template, 0, 0, 20, 0, ap);
+                        ssids.forEach(function(ssid) {
+                            const rssi = apData[ssid];
+                            const html = UTILS.formatString(template, 0, 0, 20, 0, ssid + ' (' + rssi + 'dBm)');
+                            $aplist.append(html);
+                        });
+
+                        $('#selectwifi').addClass('active');
+
+                        $aplist.find('.chip').click(function() {
+                            const fullText = $(this).find('.chip-content').text();
+                            // 提取纯 SSID（去掉信号强度部分）
+                            const ssid = fullText.replace(/\s*\(\-?\d+dBm\)$/, '');
+                            $('#ssid').val(ssid);
+                            $('#selectwifi').removeClass('active');
+                        });
+                    } else if (Array.isArray(apData)) {
+                        // 处理数组格式（兼容旧格式）
+                        const template = $('#item-ap').html();
+                        apData.forEach(function(ap) {
+                            const ssid = typeof ap === 'string' ? ap : (ap.ssid || ap.SSID || ap.name || 'Unknown');
+                            const html = UTILS.formatString(template, 0, 0, 20, 0, ssid);
                             $aplist.append(html);
                         });
 
@@ -1057,6 +1143,8 @@
                             $('#ssid').val(ssid);
                             $('#selectwifi').removeClass('active');
                         });
+                    } else {
+                        UTILS.showMessage('Error', 'Invalid AP list format', 'error');
                     }
                 }
             };
