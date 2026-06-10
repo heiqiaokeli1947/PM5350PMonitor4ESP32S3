@@ -10,11 +10,17 @@ import math
 import sys
 import os
 
-# 添加项目根目录到路径
-script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(script_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# MicroPython 兼容性处理
+try:
+    # 标准 Python
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+except (AttributeError, TypeError):
+    # MicroPython - 添加项目根目录到路径
+    # 目录结构: / -> domain/, testfile/
+    sys.path.insert(0, '/')
 
 # 导入原版和优化版
 import domain.AAC as AAC_original
@@ -86,9 +92,10 @@ def test_performance():
     # 测试参数
     test_temps = [20.0, 25.0, 30.0, 35.0]
     test_rhs = [0.3, 0.5, 0.7, 0.9]
-    iterations = 100  # 每个测试点重复次数
     
-    total_tests = len(test_temps) * len(test_rhs) * iterations
+    # 总测试次数为500次
+    total_tests = 500
+    iterations = total_tests // (len(test_temps) * len(test_rhs))
     
     print(f"测试点数量: {len(test_temps)} × {len(test_rhs)} = {len(test_temps) * len(test_rhs)}")
     print(f"每点重复次数: {iterations}")

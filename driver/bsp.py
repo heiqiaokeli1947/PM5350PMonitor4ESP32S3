@@ -6,7 +6,7 @@ import neopixel
 import driver.hdc1080 as hdc1080
 import driver.PM5350P as pm5350p
 
-import domain.AAC as AAC
+import domain.AACOps as AAC
 _FAN_PWM_FREQ = const(1000)
 _FAN_PWM_DEFAULT = const(0)
 
@@ -40,7 +40,7 @@ class BSP:
         self.__sensorReadTimer.init(mode=Timer.PERIODIC, period=5000, callback=self.timerHandler)
 
         self.setLEDArray((255, 255, 255))
-        self.aac = AAC.AAC()
+        self.aac = AAC.AACOptimized()
     def setConfig(self, config):
         self.config = config
         self.initHW()
