@@ -1,7 +1,7 @@
 import utime
 import driver.enumSysStatus as enumSysStatus
 import domain.DBUtils as db
-import domain.AAC as AAC
+import domain.AACOps as AAC
 
 class STATUS:
     INIT = 0
@@ -43,7 +43,7 @@ class FSM:
         self.airTemp = 0
         self.humity = 0
         self.wetBulbTemp = 0
-        self.aac = AAC.AAC()
+        self.aac = AAC.AACOptimized()
    
 
         self.roomTemp = 0
