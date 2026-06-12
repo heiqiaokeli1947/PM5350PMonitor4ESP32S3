@@ -13,7 +13,8 @@ import _thread
 import gc
 import micropython as mp
 
-#import domain.LogUtils as LogUtils
+# 新增：导入风扇状态机
+import domain.FanFSM as FanFSM
 
 #固件使用：ESP32_GENERIC_S3-SPIRAM_OCT-20250415-v1.25.0.bin
 LEDArrayColor = (255, 0, 0)
@@ -37,7 +38,7 @@ defaulteSystemConfig = {"deviceusername": "admin", "devicepwd": "pengping", "wif
                         "pwm3freq": 25000, "pwm3default": 0, "pwm3min": 15, "pwm3max": 100, "pwm4freq": 25000,
                         "pwm4default": 0, "pwm4min": 15, "pwm4max": 100, "sw1": True, "sw2": False,
                         "fanHThreshold": 36, "fanLThreshold": 31.5,
-                        "modbusSlaveAddr": 6, "modbusBadud": 38400}
+                        "modbusSlaveAddr": 6, "modbusBadud": 38400, "deviceId": ""}
 systemConfig = db.get("systemConfig")
 
 #db.delete(["systemConfig"])
@@ -49,6 +50,15 @@ else:
     print("create default systemConfig:{}...".format(ujson.dumps(defaulteSystemConfig)))
     db.save({"systemConfig": ujson.dumps(defaulteSystemConfig)})
     systemConfig = ujson.loads(db.get("systemConfig"))
+
+# 初始化设备 UUID
+if "deviceId" not in systemConfig or not systemConfig["deviceId"]:
+    systemConfig["deviceId"] = machine.unique_id().hex().upper()
+    print("Generated device UUID:{}".format(systemConfig["deviceId"]))
+    # 保存到数据库
+    db.save({"systemConfig": ujson.dumps(systemConfig)})
+else:
+    print("Device UUID:{}".format(systemConfig["deviceId"]))
 
 
 def createDefaultConfig():
@@ -66,8 +76,11 @@ if db.get("totalRunTime") is not None:
 else:
     db.save({"totalRunTime": str(totalRunTime)})
 
-bspInstance = bsp.bspInstance
+bspInstance = bsp.BSP()
 bspInstance.setConfig(systemConfig)
+
+# 新增：初始化风扇状态机
+fanFSM = FanFSM.FSM(bspInstance, systemConfig)
 
 # 初始化看门狗定时器，超时时间为30秒
 wdt = machine.WDT(timeout=60000)
@@ -378,6 +391,9 @@ def sysTask():
 runCounter = 0
 while True:
     sysTask()
+    
+    # 新增：运行风扇状态机
+    fanFSM.run(runCounter)
 
     if runCounter % 300 == 0:
         print("-------------Before GC-------------")

@@ -11,7 +11,22 @@ _FAN_PWM_FREQ = const(1000)
 _FAN_PWM_DEFAULT = const(0)
 
 class BSP:
+    # 单例实例
+    __instance = None
+    
+    def __new__(cls, *args, **kwargs):
+        if cls.__instance is None:
+            cls.__instance = super(BSP, cls).__new__(cls)
+            # 延迟初始化，在第一次调用时完成
+            cls.__instance._initialized = False
+        return cls.__instance
+    
     def __init__(self):
+        # 防止重复初始化
+        if self._initialized:
+            print("BSP initialed.")
+            return
+        
         self.config = None
         self.softI2C = SoftI2C(scl=Pin(3), sda=Pin(8), freq=100000)
 
@@ -19,6 +34,12 @@ class BSP:
         self.__LED = Pin(2, Pin.OUT, value=0)
         # WS2812 8*1矩阵
         self.__LEDArray = neopixel.NeoPixel(Pin(48), 1)  #16->48
+
+        self.__sysEnableSwitch = Pin(5, Pin.IN, Pin.PULL_DOWN)  #ESP32S3引脚范围0~21、26~48，所以修改23->5
+        # 34及以上，无上下拉，需要外置
+        self.__sprayEnableSwitch = Pin(6, Pin.IN, Pin.PULL_DOWN)  #ESP32S3引脚范围0~21、26~48，所以修改34->6
+        self.__airconditionerForceEn = Pin(7, Pin.IN, Pin.PULL_DOWN)  # ESP32S3引脚范围0~21、26~48，所以修改34->7
+        self.__airconditionerHallSensor = Pin(14, Pin.IN, Pin.PULL_DOWN)
         #PM5350实例
         self.__pm5350pInstance = None
         self.__pm5350pData = {}
@@ -41,6 +62,10 @@ class BSP:
 
         self.setLEDArray((255, 255, 255))
         self.aac = AAC.AACOptimized()
+        
+        # 标记已初始化
+        self._initialized = True
+
     def setConfig(self, config):
         self.config = config
         self.initHW()
@@ -66,6 +91,7 @@ class BSP:
         for i in range(1):
             self.__LEDArray[i] = color
         self.__LEDArray.write()
+        
     def readPm5350p(self):
         return self.__pm5350pData
 
@@ -125,6 +151,23 @@ class BSP:
             self.__fan1PwmPin.duty(1023)
             print("PWM duty1:{}，duty2:{}，duty3:{}".format(int(duty),int(duty),1023))
 
+    def getSysEnableStatus(self):
+        if self.__sysEnableSwitch.value() == 1:
+            return True
+        else:
+            return False
+
+    def getSprayEnableStatus(self):
+        if self.__sprayEnableSwitch.value() == 1:
+            return True
+        else:
+            return False
+
+    def getAirconditionerStatus(self):
+        if self.__airconditionerHallSensor.value() == 1 or self.__airconditionerForceEn.value() == 1:
+            return True
+        else:
+            return False
 
     def getSensorData(self):
         return self.__sensorData
@@ -132,4 +175,9 @@ class BSP:
     def getfanSpeed(self):
         return self.__fanSpeed
     
-bspInstance = BSP()
+    @classmethod
+    def getInstance(cls):
+        """获取单例实例"""
+        if cls.__instance is None:
+            cls.__instance = BSP()
+        return cls.__instance

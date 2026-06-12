@@ -1,17 +1,14 @@
 # 操作esp32引脚
-from machine import Pin
+#from machine import Pin
 
 # 操作时间 延迟几秒等
 import time
-
 # 网络相关的函数
 import network
-
 import sys
 
 # esp32 引脚2是一颗自带的 led的灯
-light = Pin(2, Pin.OUT)
-
+#light = Pin(2, Pin.OUT)
 
 def connectToWifi(ssid, pwd):
     # wifi模式
@@ -38,13 +35,13 @@ def connectToWifi(ssid, pwd):
                     #wlan.active(False)
                     return False
             print("connect success.")
-            light.value(1)
+            #light.value(1)
             # 打印 网络信息
             print("ifconfig:", wlan.ifconfig())
             return True
         else:
             print("connect success.")
-            light.value(0)
+            #light.value(1)
             # 打印 网络信息
             print("ifconfig:", wlan.ifconfig())
             return True
@@ -59,7 +56,7 @@ def connectToWifi(ssid, pwd):
 
 def getStationIP():
     wlan = network.WLAN(network.STA_IF)
-    if wlan.active and wlan.isconnected():
+    if wlan.active() and wlan.isconnected():
         return wlan.ifconfig()[0]
     else:
         return "Station not active or not connected."
